@@ -28,7 +28,8 @@ enum class Suit {
 
 struct Card {
 	Value value;
-  Suit suit;
+  Suit suit = Suit::kNoSuit;
+  bool starting_three_of_clubs = false;
 
   bool operator==(const Card& other);
 };

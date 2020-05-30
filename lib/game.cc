@@ -34,7 +34,6 @@ std::vector<Card> CreateDeck(const int num_decks) {
     }
     // Add fours through twos.
     for (const Value value : {
-      Value::kThree,
       Value::kFour,
       Value::kFive,
       Value::kSix,

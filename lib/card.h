@@ -1,3 +1,5 @@
+#include <iostream>
+
 enum class Value {
   kThree,
   kFour,
@@ -27,6 +29,10 @@ enum class Suit {
 struct Card {
 	Value value;
   Suit suit;
+
+  bool operator==(const Card& other);
 };
+
+std::ostream& operator<<(std::ostream& os, const Card& card);
 
 bool CompareCards(const Card card, const Card other_card);

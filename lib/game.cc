@@ -122,9 +122,13 @@ bool Game::Advance(const std::string& player,
     *error_message = oss.str();
     return false;
   }
-  const bool result = players_[current_player_].Play(
-      std::move(cards), error_message);
-  current_player_++;
+  if (!cards.empty()) {
+    const bool result = players_[current_player_].Play(
+        std::move(cards), error_message);
+  }
+  do {
+    current_player_++;
+  } while (players_[current_player_].hand().empty());
   return result;
 }
 

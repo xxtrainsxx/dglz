@@ -10,7 +10,7 @@ Game::Game(std::vector<Player> players, int first_player)
       current_player_(first_player) {}
 
 constexpr int kDeckSize = 54;
-constexpr int kHandSize = 27;
+constexpr int kHandSize = kDeckSize / 2;
 
 std::vector<Card> CreateDeck(const int num_decks) {
   std::vector<Card> deck;
@@ -122,8 +122,9 @@ bool Game::Advance(const std::string& player,
     *error_message = oss.str();
     return false;
   }
+  bool result = true;
   if (!cards.empty()) {
-    const bool result = players_[current_player_].Play(
+    result = players_[current_player_].Play(
         std::move(cards), error_message);
   }
   do {

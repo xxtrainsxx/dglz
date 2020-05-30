@@ -106,21 +106,34 @@ bool Game::Advance(const std::string& player,
     *error_message = oss.str();
     return false;
   }
-  return players_[current_player_].Play(
+  const bool result = players_[current_player_].Play(
       std::move(cards), error_message);
+  current_player_++;
+  return result;
 }
 
 bool Game::IsGameComplete() const {
   bool team_one_has_cards = false;
   bool team_two_has_cards = false;
   for (int p = 0; p < players_.size(); ++p) {
-    if (players_[p].hand().size() != 0) {
-      if (p % 2 == 0) {
-        team_one_has_cards = true;
-      } else {
-        team_two_has_cards = true;
-      }
+    if (players_[p].hand().empty()) {
+      continue;
+    }
+    if (p % 2 == 0) {
+      team_one_has_cards = true;
+    } else {
+      team_two_has_cards = true;
     }
   }
   return team_one_has_cards && team_two_has_cards;
+}
+
+int Game::NumTributes() const {
+  int num_players_with_cards = 0;
+  for (int p = 0; p < players_.size(); ++p) {
+    if (!players_[p].hand().empty()) {
+      num_players_with_cards++;
+    }
+  }
+  return num_players_with_cards;
 }

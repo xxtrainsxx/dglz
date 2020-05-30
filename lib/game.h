@@ -13,6 +13,9 @@ class Game {
 
   bool IsGameComplete() const;
 
+  // Should only be called when the game is finished.
+  int NumTributes() const;
+
  private:
   Game(std::vector<Player> players);
 

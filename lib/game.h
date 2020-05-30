@@ -17,7 +17,7 @@ class Game {
   int NumTributes() const;
 
  private:
-  Game(std::vector<Player> players);
+  Game(std::vector<Player> players, int first_player);
 
   std::vector<Player> players_;
   int current_player_;

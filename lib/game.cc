@@ -5,8 +5,9 @@
 #include <sstream>
 #include <vector>
 
-Game::Game(std::vector<Player> players) :
-    players_(std::move(players)) {}
+Game::Game(std::vector<Player> players, int first_player)
+    : players_(std::move(players)),
+      current_player_(first_player) {}
 
 constexpr int kDeckSize = 54;
 constexpr int kHandSize = 27;
@@ -19,7 +20,7 @@ std::vector<Card> CreateDeck(const int num_decks) {
     deck.push_back(Card{
       .value = Value::kThree,
       .suit = Suit::kClubs,
-      .starting_three_of_clubs = i == 0,
+      .is_starting_three_of_clubs = i == 0,
     });
     for (const Suit suit : {
       Suit::kDiamonds,
@@ -66,6 +67,17 @@ std::vector<Card> CreateDeck(const int num_decks) {
   return deck;
 }
 
+int FindFirstPlayer(const std::vector<Player>& players) {
+  for (int p = 0; p < players.size(); ++p) {
+    for (const Card& card : players[p].hand()) {
+      if (card.is_starting_three_of_clubs) {
+        return p;
+      }
+    }
+  }
+  return -1;
+}
+
 bool Game::Create(std::vector<std::string> player_names,
                   Game* game, std::string* error_message) {
   if (player_names.size() % 2 != 0) {
@@ -87,7 +99,12 @@ bool Game::Create(std::vector<std::string> player_names,
     players.emplace_back(std::move(player_names[p]),
                          std::move(starting_hand));
   }
-  *game = Game(std::move(players));
+  const int first_player = FindFirstPlayer(players);
+  if (first_player < 0) {
+    *error_message = "Could not find starting three of clubs";
+    return false;
+  }
+  *game = Game(std::move(players), first_player);
   return true;
 }
 

@@ -32,4 +32,4 @@ class Card:
   def __eq__(self, other):
     if not isinstance(other, Card):
       return NotImplemented
-    return self.value == other.value && self.suit == other.suit && self.is_starting_three_of_clubs == other.is_starting_three_of_clubs
+    return self.value == other.value and self.suit == other.suit and self.is_starting_three_of_clubs == other.is_starting_three_of_clubs

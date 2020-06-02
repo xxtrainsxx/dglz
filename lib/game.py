@@ -27,7 +27,7 @@ class Game:
         team_one_has_cards = True
       else:
         team_two_has_cards = True
-    return !team_one_has_cards or !team_two_has_cards
+    return not team_one_has_cards or not team_two_has_cards
 
   # Should only be called once the game is complete.
   def num_tributes(self):

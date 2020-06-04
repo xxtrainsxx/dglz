@@ -30,12 +30,12 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       # TODO: Acquire and release lock.
       # TODO: Show player list.
       return '''
-      <button id="join-as-player">Join as player</button>
-      <button id="join-as-spectator">Join as spectator</button>
+      <button type="button" class="btn btn-primary" id="join-as-player">Join as player</button>
+      <button type="button" class="btn btn-secondary" id="join-as-spectator">Join as spectator</button>
       '''
     return '''
     Game in progress
-    <button id="spectate">Spectate game</button>
+    <button type="button" class="btn btn-primary" id="spectate">Spectate game</button>
     '''
 
   def do_POST(self):

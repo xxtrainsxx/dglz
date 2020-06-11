@@ -86,10 +86,11 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
   def _get_body(self):
     # TODO: Create in-game view.
     if self._game_started():
+      # TODO: Move this to a file.
       return '''
       Game in progress
       <form method="post" action="spectate">
-        <button type="submit" class="btn btn-primary" id="spectate">Spectate game</button>
+        <button type="submit" class="btn btn-primary">Spectate game</button>
       </form>
       '''
     cookie = SimpleCookie(self.headers.get('Cookie'))
@@ -132,7 +133,9 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       self._do_join()
     if parse_result.path == '/spectate':
       self._do_spectate()
+    # TODO: /start
 
+  # TODO: Remove player from spectators if necessary.
   def _do_join(self):
     if self._game_started():
       self.send_response(400)

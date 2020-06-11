@@ -1,0 +1,23 @@
+<div style="height:10rem"></div>
+<h1 style="text-align:center">{title:s}</h1>
+<div style="height:2rem"></div>
+<table style="width:100%">
+  <tbody>
+    <tr>
+      <td style="padding-left:{padding:d}%;width:{width:d}%;position:absolute">
+        <h3>Players</h3>
+        <div style="height:{height:.1f}rem">
+          <div style="height:1rem"></div>
+          <ul style="list-style:none;padding-left:5px">
+            {players:s}
+          </ul>
+          <p style="font-size:medium;padding-left:5px">Spectators: {spectators:d}</p>
+          <form method="post" action="spectate" style="margin:0;position:absolute;bottom:0">
+            <button type="submit" class="btn btn-secondary">Become spectator</button>
+          </form>
+        </div>
+      </td>
+      {options:s}
+    </tr>
+  </tbody>
+</table>

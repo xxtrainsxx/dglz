@@ -1,14 +1,17 @@
 from cgi import FieldStorage
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
+from random import randint
+from sys import maxsize
 from threading import Lock
 from urllib.parse import urlparse
 
 class DglzRequestHandler(BaseHTTPRequestHandler):
-  _lock = Lock()
-  _game = None
-  _players = []
   _base_response = open('server/html/index.html').read()
+  _game = None
+  _lock = Lock()
+  _players = []
+  _uid_to_player = dict()
 
   def do_GET(self):
     self.send_response(200)
@@ -32,16 +35,17 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
 
   def do_POST(self):
     parse_result = urlparse(self.path)
-    username = ""
-    if parse_result.path == "/join":
-      username = self._do_join()
-
-    self.send_response(200)
-    self.send_header('Content-type', 'text/html')
-    self.end_headers()
-    self.wfile.write(self._base_response.format(body = username).encode("utf-16"))
+    if parse_result.path == '/join':
+      self._do_join()
 
   def _do_join(self):
+    if not self._game is None:
+      self.send_response(400)
+      self.send_header('Content-type', 'text/html')
+      self.end_headers()
+      self.wfile.write(self._base_response.format(body = 'Cannot join a game already in progress').encode("utf-16"))
+      return
+
     form = FieldStorage(
       fp=self.rfile,
       headers=self.headers, 
@@ -50,7 +54,7 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
         'CONTENT_TYPE': self.headers['Content-Type'],
       }
     )
-    username = form["username"].value
+    username = form['username'].value
     # Create a unique username.
     self._lock.acquire()
     if username in self._players:
@@ -61,5 +65,16 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
         if not username in self._players:
           break
     self._players.append(username)
+    uid = randint(0, maxsize)
+    while uid in self._uid_to_player:
+      uid = randint(0, maxsize)
+    self._uid_to_player[uid] = username
     self._lock.release()
-    return username
+
+    cookie = SimpleCookie()
+    cookie['uid'] = uid
+    self.send_response(200)
+    self.send_header('Content-type', 'text/html')
+    self.send_header('Set-Cookie', cookie['uid'].OutputString())
+    self.end_headers()
+    self.wfile.write(self._base_response.format(body = str(uid)).encode("utf-16"))

@@ -41,6 +41,14 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       }
     )
     username = form["username"].value
+    # Create a unique username.
+    if username in self._players:
+      suffix = 1
+      while True:
+        username += str(suffix)
+        suffix += 1
+        if not username in self._players:
+          break
     self._players.append(username)
 
     self.send_response(200)

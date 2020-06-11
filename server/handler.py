@@ -1,9 +1,8 @@
-import os
-
-from asyncio import Lock
 from cgi import FieldStorage
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
+from threading import Lock
+from urllib.parse import urlparse
 
 class DglzRequestHandler(BaseHTTPRequestHandler):
   _lock = Lock()
@@ -32,6 +31,17 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     '''
 
   def do_POST(self):
+    parse_result = urlparse(self.path)
+    username = ""
+    if parse_result.path == "/join":
+      username = self._do_join()
+
+    self.send_response(200)
+    self.send_header('Content-type', 'text/html')
+    self.end_headers()
+    self.wfile.write(self._base_response.format(body = username).encode("utf-16"))
+
+  def _do_join(self):
     form = FieldStorage(
       fp=self.rfile,
       headers=self.headers, 
@@ -42,6 +52,7 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     )
     username = form["username"].value
     # Create a unique username.
+    self._lock.acquire()
     if username in self._players:
       suffix = 1
       while True:
@@ -50,8 +61,5 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
         if not username in self._players:
           break
     self._players.append(username)
-
-    self.send_response(200)
-    self.send_header('Content-type', 'text/html')
-    self.end_headers()
-    self.wfile.write(self._base_response.format(body = username).encode("utf-16"))
+    self._lock.release()
+    return username

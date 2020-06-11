@@ -1,4 +1,7 @@
+import os
+
 from asyncio import Lock
+from cgi import FieldStorage
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
 
@@ -6,22 +9,13 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
   _lock = Lock()
   _game = None
   _players = []
-
-  RESPONSE_BASE = '''
-  <html>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
-  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
-  <body>
-  {body:s}
-  </body>
-  </html>
-  '''
+  _base_response = open('server/html/index.html').read()
 
   def do_GET(self):
     self.send_response(200)
     self.send_header('Content-type', 'text/html')
     self.end_headers()
-    self.wfile.write(self.RESPONSE_BASE.format(body = self._get_body()).encode("utf-8"))
+    self.wfile.write(self._base_response.format(body = self._get_body()).encode("utf-16"))
 
   def _get_body(self):
     # TODO: Check cookie.
@@ -29,16 +23,27 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     if self._game is None:
       # TODO: Acquire and release lock.
       # TODO: Show player list.
-      return '''
-      <button type="button" class="btn btn-primary" id="join-as-player">Join as player</button>
-      <button type="button" class="btn btn-secondary" id="join-as-spectator">Join as spectator</button>
-      '''
+      return open('server/html/home.html').read()
     return '''
     Game in progress
-    <button type="button" class="btn btn-primary" id="spectate">Spectate game</button>
+    <form method="post" action="spectate">
+      <button type="submit" class="btn btn-primary" id="spectate">Spectate game</button>
+    </form>
     '''
 
   def do_POST(self):
-    # TODO: Check action and cookie.
-    # TODO: Acquire and release lock.
-    pass
+    form = FieldStorage(
+      fp=self.rfile,
+      headers=self.headers, 
+      environ={
+        'REQUEST_METHOD': 'POST', 
+        'CONTENT_TYPE': self.headers['Content-Type'],
+      }
+    )
+    username = form["username"].value
+    self._players.append(username)
+
+    self.send_response(200)
+    self.send_header('Content-type', 'text/html')
+    self.end_headers()
+    self.wfile.write(self._base_response.format(body = username).encode("utf-16"))

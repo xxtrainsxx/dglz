@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 
 class DglzRequestHandler(BaseHTTPRequestHandler):
   BASE_RESPONSE = open('server/html/index.html').read()
+  SPECTATE_BUTTON = '<form method="post" action="spectate" style="margin:0;position:absolute;bottom:0"><button type="submit" class="btn btn-secondary">Become spectator</button></form>'
+  JOIN_GAME_BUTTON = '<form method="post" action="join" style="margin:0;position:absolute;bottom:0"><button type="submit" class="btn btn-primary">Join game</button></form>'
 
   _lock = Lock()
   _game = None
@@ -22,9 +24,21 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     self._lock.release()
     return started
 
-  def _uid_exists(self, uid):
+  def _create_uid_unsafe(self):
+    uid = randint(0, maxsize)
+    while uid in self._uid_to_player or uid in self._spectators:
+      uid = randint(0, maxsize)
+    return uid
+
+  def _uid_is_player(self, uid):
     self._lock.acquire()
     exists = uid in self._uid_to_player
+    self._lock.release()
+    return exists
+
+  def _uid_is_spectator(self, uid):
+    self._lock.acquire()
+    exists = uid in self._spectators
     self._lock.release()
     return exists
 
@@ -39,7 +53,7 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     self._lock.acquire()
     for p in self._players:
       player_list += '<li style="font-size:medium;height:1.5rem">' + p
-      if self._uid_to_player[uid] == p:
+      if uid in self._uid_to_player and self._uid_to_player[uid] == p:
         player_list += ' (you)'
       player_list += '</li>'
     self._lock.release()
@@ -78,15 +92,16 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
         <button type="submit" class="btn btn-primary" id="spectate">Spectate game</button>
       </form>
       '''
-    # TODO: Show options/controls to p1.
     cookie = SimpleCookie(self.headers.get('Cookie'))
     if 'uid' in cookie:
       uid = int(cookie['uid'].value)
-      if self._uid_exists(uid):
+      is_player = self._uid_is_player(uid)
+      is_spectator = self._uid_is_spectator(uid)
+      if is_player or is_spectator:
         lobby_html = open('server/html/lobby.html').read()
         height = 6.5 + (self._num_players() * 1.5)
         player_list = self._get_player_list_html(uid)
-        username = self._get_player_by_uid(uid)
+        username = self._get_player_by_uid(uid) if is_player else ''
         if username == self._players[0]:
           game_options_html = open('server/html/game_options.html').read()
           return lobby_html.format(
@@ -96,6 +111,7 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
             height = height,
             players = player_list,
             spectators = self._num_spectators(),
+            button = self.SPECTATE_BUTTON,
             options = game_options_html.format(height = height),
           )
         return lobby_html.format(
@@ -105,6 +121,7 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
           height = height,
           players = player_list,
           spectators = self._num_spectators(),
+          button = self.SPECTATE_BUTTON if is_player else self.JOIN_GAME_BUTTON,
           options = '',
         )
     return open('server/html/home.html').read()
@@ -113,6 +130,8 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     parse_result = urlparse(self.path)
     if parse_result.path == '/join':
       self._do_join()
+    if parse_result.path == '/spectate':
+      self._do_spectate()
 
   def _do_join(self):
     if self._game_started():
@@ -131,6 +150,8 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       }
     )
     username = escape(form['username'].value)
+    if username == '':
+      username = '[empty string]'
     # Create a unique username.
     self._lock.acquire()
     if username in self._players:
@@ -141,10 +162,33 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
         if not username in self._players:
           break
     self._players.append(username)
-    uid = randint(0, maxsize)
-    while uid in self._uid_to_player:
-      uid = randint(0, maxsize)
+    uid = self._create_uid_unsafe()
     self._uid_to_player[uid] = username
+    self._lock.release()
+
+    cookie = SimpleCookie()
+    cookie['uid'] = uid
+    self.send_response(303)
+    self.send_header('Content-type', 'text/html')
+    self.send_header('Location', '/')
+    self.send_header('Set-Cookie', cookie['uid'].OutputString())
+    self.end_headers()
+
+  def _do_spectate(self):
+    cookie = SimpleCookie(self.headers.get('Cookie'))
+    uid = -1
+    if 'uid' in cookie:
+      uid = int(cookie['uid'].value)
+      if self._uid_is_player(uid):
+        self._lock.acquire()
+        self._players.remove(self._uid_to_player[uid])
+        self._lock.release()
+    else:
+      self._lock.acquire()
+      uid = self._create_uid_unsafe()
+      self._lock.release()
+    self._lock.acquire()
+    self._spectators.append(uid)
     self._lock.release()
 
     cookie = SimpleCookie()

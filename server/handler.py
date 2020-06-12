@@ -89,13 +89,7 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
   def _get_body(self):
     # TODO: Create in-game view.
     if self._game_started():
-      # TODO: Move this to a file.
-      return '''
-      Game in progress
-      <form method="post" action="spectate">
-        <button type="submit" class="btn btn-primary">Spectate game</button>
-      </form>
-      '''
+      return open('server/html/game_in_progress.html').read()
     cookie = SimpleCookie(self.headers.get('Cookie'))
     if 'uid' in cookie:
       uid = int(cookie['uid'].value)

@@ -25,10 +25,12 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     self._lock.release()
     return started
 
-  def _create_uid_unsafe(self):
+  def _create_uid(self):
     uid = randint(0, maxsize)
+    self._lock.acquire()
     while uid in self._uid_to_player or uid in self._spectators:
       uid = randint(0, maxsize)
+    self._lock.release()
     return uid
 
   def _uid_is_player(self, uid):
@@ -136,7 +138,6 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       self._do_spectate()
     # TODO: /start
 
-  # TODO: Remove player from spectators if necessary.
   def _do_join(self):
     if self._game_started():
       self.send_response(400)
@@ -144,6 +145,17 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       self.end_headers()
       self.wfile.write(self.BASE_RESPONSE.format(body = 'Cannot join a game already in progress').encode("utf-16"))
       return
+
+    cookie = SimpleCookie(self.headers.get('Cookie'))
+    uid = -1
+    if 'uid' in cookie:
+      uid = int(cookie['uid'].value)
+      if self._uid_is_spectator(uid):
+        self._lock.acquire()
+        self._spectators.remove(uid)
+        self._lock.release()
+    else:
+      uid = self._create_uid()
 
     form = FieldStorage(
       fp=self.rfile,
@@ -166,7 +178,6 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
         if not username in self._players:
           break
     self._players.append(username)
-    uid = self._create_uid_unsafe()
     self._uid_to_player[uid] = username
     self._lock.release()
 
@@ -186,11 +197,10 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       if self._uid_is_player(uid):
         self._lock.acquire()
         self._players.remove(self._uid_to_player[uid])
+        del self._uid_to_player[uid]
         self._lock.release()
     else:
-      self._lock.acquire()
-      uid = self._create_uid_unsafe()
-      self._lock.release()
+      uid = self._create_uid()
     self._lock.acquire()
     self._spectators.append(uid)
     self._lock.release()

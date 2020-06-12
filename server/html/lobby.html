@@ -21,6 +21,36 @@
 </table>
 <script type="text/javascript">
   $(document).ready(function () {{
-    setTimeout('window.location.reload(true);', 3000);
+    let cookie_str = document.cookie;
+    var cookies = cookie_str.split('; ');
+    for (cookie of cookies) {{
+      let k_and_v = cookie.split('=');
+      if (k_and_v[0] == 'show-log') {{
+        $('#show-log').prop('checked', k_and_v[1] == 'true');
+      }}
+    }}
+    setTimeout(function() {{
+      if (!$('#join-form').hasClass('show')) {{
+        window.location.reload(true);
+      }}
+    }}, 5000);
+    $('#show-log').change(function() {{
+      let new_cookie = ['show-log', $('#show-log').prop('checked')].join('=');
+      // Set cookie for Chrome
+      if (navigator.userAgent.indexOf("Chrome") > -1) {{
+        document.cookie = new_cookie;
+        return;
+      }}
+      for (i = 0; i < cookies.length; i++) {{
+        let k_and_v = cookies[i].split('=');
+        if (k_and_v[0] == 'show-log') {{
+          cookies[i] = new_cookie;
+          document.cookie = cookies.join('; ');
+          return;
+        }}
+      }}
+      cookies.push(new_cookie);
+      document.cookie = cookies.join('; ');
+    }});
   }});
 </script>

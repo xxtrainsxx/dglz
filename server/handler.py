@@ -9,8 +9,9 @@ from urllib.parse import urlparse
 
 class DglzRequestHandler(BaseHTTPRequestHandler):
   BASE_RESPONSE = open('server/html/index.html').read()
+  JOIN_GAME_MODAL = open('server/html/join_modal.html').read()
   SPECTATE_BUTTON = '<form method="post" action="spectate" style="margin:0;position:absolute;bottom:0"><button type="submit" class="btn btn-secondary">Become spectator</button></form>'
-  JOIN_GAME_BUTTON = '<form method="post" action="join" style="margin:0;position:absolute;bottom:0"><button type="submit" class="btn btn-primary">Join game</button></form>'
+  JOIN_GAME_BUTTON = '<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#join-form">Join game</button>'
 
   _lock = Lock()
   _game = None
@@ -99,7 +100,7 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       is_player = self._uid_is_player(uid)
       is_spectator = self._uid_is_spectator(uid)
       if is_player or is_spectator:
-        lobby_html = open('server/html/lobby.html').read()
+        lobby_html = open('server/html/lobby.html').read() + self.JOIN_GAME_MODAL
         height = 6.5 + (self._num_players() * 1.5)
         player_list = self._get_player_list_html(uid)
         username = self._get_player_by_uid(uid) if is_player else ''
@@ -125,7 +126,7 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
           button = self.SPECTATE_BUTTON if is_player else self.JOIN_GAME_BUTTON,
           options = '',
         )
-    return open('server/html/home.html').read()
+    return open('server/html/home.html').read() + self.JOIN_GAME_MODAL
 
   def do_POST(self):
     parse_result = urlparse(self.path)
@@ -152,9 +153,9 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
         'CONTENT_TYPE': self.headers['Content-Type'],
       }
     )
-    username = escape(form['username'].value)
-    if username == '':
-      username = '[empty string]'
+    username = '[empty string]'
+    if 'username' in form:
+      username = escape(form['username'].value)
     # Create a unique username.
     self._lock.acquire()
     if username in self._players:

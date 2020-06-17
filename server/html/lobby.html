@@ -8,7 +8,7 @@
         <h3>Players</h3>
         <div style="height:{height:.1f}rem">
           <div style="height:1rem"></div>
-          <ul style="list-style:none;padding-left:5px">
+          <ul style="list-style:none;padding-left:5px" id="player-list">
             {players:s}
           </ul>
           <p style="font-size:medium;padding-left:5px">Spectators: {spectators:d}</p>
@@ -28,6 +28,13 @@
       if (k_and_v[0] == 'show-log') {{
         $('#show-log').prop('checked', k_and_v[1] == 'true');
       }}
+    }}
+    if ($('#player-list').children('li').length % 2 != 0) {{
+      $('#start-game').prop('disabled', true);
+      $('#start-game').prop('title', 'Must have an even number of players');
+    }} else {{
+      $('#start-game').prop('disabled', false);
+      $('#start-game').removeProp('title');
     }}
     setTimeout(function() {{
       if (!$('#join-form').hasClass('show')) {{

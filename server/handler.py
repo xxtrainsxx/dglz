@@ -33,6 +33,12 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     self._lock.release()
     return uid
 
+  def _is_player_one(self, uid):
+    self._lock.acquire()
+    is_player_one = uid in self._uid_to_player and self._uid_to_player[uid] == self._players[0]
+    self._lock.release()
+    return is_player_one
+
   def _uid_is_player(self, uid):
     self._lock.acquire()
     exists = uid in self._uid_to_player
@@ -130,7 +136,8 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
       self._do_join()
     if parse_result.path == '/spectate':
       self._do_spectate()
-    # TODO: /start
+    if parse_result.path == '/start':
+      self._do_start()
 
   def _do_join(self):
     if self._game_started():
@@ -205,4 +212,27 @@ class DglzRequestHandler(BaseHTTPRequestHandler):
     self.send_header('Content-type', 'text/html')
     self.send_header('Location', '/')
     self.send_header('Set-Cookie', cookie['uid'].OutputString())
+    self.end_headers()
+
+  def _do_start(self):
+    cookie = SimpleCookie(self.headers.get('Cookie'))
+    if not 'uid' in cookie:
+      self.send_response(400)
+      self.send_header('Content-type', 'text/html')
+      self.end_headers()
+      self.wfile.write(self.BASE_RESPONSE.format(body = 'Cannot find player cookie').encode("utf-16"))
+      return
+    uid = int(cookie['uid'].value)
+    if not self._is_player_one(uid):
+      self.send_response(400)
+      self.send_header('Content-type', 'text/html')
+      self.end_headers()
+      self.wfile.write(self.BASE_RESPONSE.format(body = 'Player one must start the game').encode("utf-16"))
+      return
+
+    # TODO: Create game.
+
+    self.send_response(303)
+    self.send_header('Content-type', 'text/html')
+    self.send_header('Location', '/')
     self.end_headers()

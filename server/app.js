@@ -29,7 +29,7 @@ app.listen(8000);
 
 function handler(req, res) {
   var cookies = cookie.parse(req.headers.cookie || '');
-  var uid = parseInt(cookies.uid);
+  var uid = cookies.uid ? parseInt(cookies.uid) : -1;
   if (isNaN(uid)) {
     res.writeHead(500);
     res.end('Failed to parse uid');
@@ -135,7 +135,7 @@ function doJoin(uid, req, res) {
   } else {
     newUid = createUid();
   }
-  if (uid < 0) {
+  if (newUid < 0) {
     res.writeHead(500);
     res.end('Invalid user ID');
     return;
@@ -186,7 +186,7 @@ function doSpectate(uid, req, res) {
   } else {
     newUid = createUid();
   }
-  if (uid < 0) {
+  if (newUid < 0) {
     res.writeHead(500);
     res.end('Invalid user ID');
     return;

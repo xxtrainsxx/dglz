@@ -10,12 +10,15 @@ const homeHtml = fs.readFileSync(path.join(__dirname, '../client/home.html'));
 const homeJs = fs.readFileSync(path.join(__dirname, '../client/src/home.js'));
 
 var game = null;
+var players = [];     // Player names.
+var uidToPlayer = new Map();
+var spectators = [];  // Spectator UIDs.
 
 hb.registerPartial('joinModal', joinModal.toString());
 
 app.listen(8000);
 
-function handler (req, res) {
+function handler(req, res) {
   res.writeHead(200);
   res.end(hb.compile(
     indexHtml.toString(),
@@ -24,6 +27,26 @@ function handler (req, res) {
     script: homeJs,
     body: hb.compile(homeHtml.toString())(),
   }));
+}
+
+function isSpectator(uid) {
+  return spectators.includes(uid);
+}
+
+function isPlayer(uid) {
+  return uidToPlayer.has(uid);
+}
+
+function isPlayerOne(uid) {
+  return isPlayer(uid) && uidToPlayer[uid] === players[0];
+}
+
+function createUid() {
+  let uid = 0;
+  do {
+    uid = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+  } while (isPlayer(uid) || isSpectator(uid));
+  return uid;
 }
 
 io.on('connection', (socket) => {

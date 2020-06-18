@@ -131,6 +131,7 @@ function doJoin(uid, req, res) {
       return;
     }
     spectators.splice(i, 1);
+    io.emit('num spectators', {numSpectators: spectators.length});
     newUid = uid;
   } else {
     newUid = createUid();
@@ -161,7 +162,7 @@ function doJoin(uid, req, res) {
     res.setHeader('Location', '/');
     res.writeHead(303);
     res.end();
-    // TODO: socket.emit();
+    io.emit('new player', {username: username});
   })
 }
 
@@ -182,6 +183,7 @@ function doSpectate(uid, req, res) {
     }
     players.splice(i, 1);
     uidToPlayer.delete(uid);
+    io.emit('player left', {username: username});
     newUid = uid;
   } else {
     newUid = createUid();
@@ -196,7 +198,7 @@ function doSpectate(uid, req, res) {
   res.setHeader('Location', '/');
   res.writeHead(303);
   res.end();
-  // TODO: socket.emit();
+  io.emit('num spectators', {numSpectators: spectators.length});
 }
 
 function doStart(uid, req, res) {
@@ -214,7 +216,7 @@ function doStart(uid, req, res) {
   res.setHeader('Location', '/');
   res.writeHead(303);
   res.end();
-  // TODO: socket.emit();
+  // TODO: io.emit();
 }
 
 function isSpectator(uid) {

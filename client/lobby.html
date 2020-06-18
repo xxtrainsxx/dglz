@@ -16,14 +16,14 @@
       <td style="padding-left:45%;width:100%;position:absolute">
       {{/if}}
         <h3>Players</h3>
-        <div style="height:{{playersHeight}}rem">
+        <div style="height:{{playersHeight}}rem" id="player-div">
           <div style="height:1rem"></div>
           <ul style="list-style:none;padding-left:5px" id="player-list">
             {{#each players}}
               <li style="font-size:medium;height:1.5rem">{{this}}</li>
             {{/each}}
           </ul>
-          <p style="font-size:medium;padding-left:5px">Spectators: {{spectators}}</p>
+          <p style="font-size:medium;padding-left:5px" id="spectators">Spectators: {{spectators}}</p>
           {{#if isSpectator}}
           <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#join-form">Join game</button>
           {{> joinModal}}
@@ -35,7 +35,7 @@
       {{#if playerOne}}
       <td style="margin-left:60%;position:absolute">
         <h3>Options</h3>
-        <div style="height:{{playersHeight}}rem">
+        <div style="height:{{playersHeight}}rem" id="options-div">
           <div style="height:1rem"></div>
           <form method="post" action="start" style="margin:0">
             <div class="form-check" style="font-size:medium;height:1.5rem">

@@ -1,13 +1,22 @@
 const app = require('http').createServer(handler)
 const io = require('socket.io')(app);
+const cookie = require('cookie');
 const fs = require('fs');
-const path = require('path');
 const hb = require('handlebars');
+const path = require('path');
+const qs = require('querystring');
 
-const indexHtml = fs.readFileSync(path.join(__dirname, '../client/index.html'));
-const joinModal = fs.readFileSync(path.join(__dirname, '../client/join_modal.html'));
-const homeHtml = fs.readFileSync(path.join(__dirname, '../client/home.html'));
-const homeJs = fs.readFileSync(path.join(__dirname, '../client/src/home.js'));
+function readFile(relativePath) {
+  return fs.readFileSync(path.join(__dirname, relativePath));
+}
+
+const indexHtml = readFile('../client/index.html');
+const joinModal = readFile('../client/join_modal.html');
+const homeHtml = readFile('../client/home.html');
+const homeJs = readFile('../client/src/home.js');
+const lobbyHtml = readFile('../client/lobby.html');
+const lobbyJs = readFile('../client/src/lobby.js');
+const gameInProgressHtml = readFile('../client/game_in_progress.html');
 
 var game = null;
 var players = [];     // Player names.
@@ -19,14 +28,193 @@ hb.registerPartial('joinModal', joinModal.toString());
 app.listen(8000);
 
 function handler(req, res) {
+  var cookies = cookie.parse(req.headers.cookie || '');
+  var uid = parseInt(cookies.uid);
+  if (isNaN(uid)) {
+    res.writeHead(500);
+    res.end('Failed to parse uid');
+    return;
+  }
+  if (req.method === 'GET') {
+    doGet(uid, req, res);
+  } else if (req.method === 'POST') {
+    doPost(uid, req, res);
+  } else {
+    res.writeHead(405);
+    res.end('Method not supported');
+  }
+}
+
+function doGet(uid, req, res) {
+  if (req.url === '/') {
+    if (game == null) {
+      doGetHome(uid, req, res);
+    } else {
+      doGetGame(uid, req, res);
+    }
+  } else {
+    res.writeHead(404);
+    res.end('Page not found');
+  }
+}
+
+function doGetHome(uid, req, res) {
+  if (isPlayer(uid) || isSpectator(uid)) {
+    res.writeHead(200);
+    res.end(hb.compile(
+      indexHtml.toString(),
+      {noEscape: true},
+    )({
+      script: lobbyJs,
+      body: hb.compile(lobbyHtml.toString())({
+        playerOne: isPlayerOne(uid),
+        playersHeight: 6.5 + (players.length * 1.5),
+        players: players,
+        spectators: spectators.length,
+        isSpectator: isSpectator(uid),
+      }),
+    }));
+  } else {
+    res.writeHead(200);
+    res.end(hb.compile(
+      indexHtml.toString(),
+      {noEscape: true},
+    )({
+      script: homeJs,
+      body: hb.compile(homeHtml.toString())(),
+    }));
+  }
+}
+
+// TODO: Create in-game view.
+function doGetGame(uid, req, res) {
   res.writeHead(200);
   res.end(hb.compile(
     indexHtml.toString(),
     {noEscape: true},
   )({
-    script: homeJs,
-    body: hb.compile(homeHtml.toString())(),
+    script: '',
+    body: gameInProgressHtml.toString(),
   }));
+}
+
+function doPost(uid, req, res) {
+  if (req.url === '/join') {
+    doJoin(uid, req, res);
+  } else if (req.url === '/spectate') {
+    doSpectate(uid, req, res);
+  } else if (req.url === '/start') {
+    doStart(uid, req, res);
+  } else {
+    res.writeHead(404);
+    res.end('Action not found');
+  }
+}
+
+function doJoin(uid, req, res) {
+  if (game != null) {
+    res.writeHead(403);
+    res.end('Cannot join a game in progress');
+    return;
+  }
+  if (isPlayer(uid)) {
+    res.writeHead(400);
+    res.end('Player already in game');
+    return;
+  }
+  let newUid = -1;
+  if (isSpectator(uid)) {
+    const i = spectators.indexOf(uid);
+    if (i < 0) {
+      res.writeHead(500);
+      res.end('Could not remove spectator');
+      return;
+    }
+    spectators.splice(i, 1);
+    newUid = uid;
+  } else {
+    newUid = createUid();
+  }
+  if (uid < 0) {
+    res.writeHead(500);
+    res.end('Invalid user ID');
+    return;
+  }
+  var username = 'user';
+  req.on('data', chunk => {
+    let data = qs.parse(String(chunk));
+    if (data.username) {
+      username = data.username;
+    }
+  });
+  req.on('end', () => {
+    if (players.includes(username)) {
+      let suffix = 1;
+      while (players.includes(username + suffix)) {
+        suffix++;
+      }
+      username += suffix;
+    }
+    players.push(username);
+    uidToPlayer.set(newUid, username);
+    res.setHeader('Set-Cookie', cookie.serialize('uid', newUid));
+    res.setHeader('Location', '/');
+    res.writeHead(303);
+    res.end();
+    // TODO: socket.emit();
+  })
+}
+
+function doSpectate(uid, req, res) {
+  if (isSpectator(uid)) {
+    res.writeHead(400);
+    res.end('Already spectating game');
+    return;
+  }
+  let newUid = -1;
+  if (isPlayer(uid)) {
+    let username = uidToPlayer.get(uid);
+    const i = players.indexOf(username);
+    if (i < 0) {
+      res.writeHead(500);
+      res.end('Could not remove player');
+      return;
+    }
+    players.splice(i, 1);
+    uidToPlayer.delete(uid);
+    newUid = uid;
+  } else {
+    newUid = createUid();
+  }
+  if (uid < 0) {
+    res.writeHead(500);
+    res.end('Invalid user ID');
+    return;
+  }
+  spectators.push(newUid);
+  res.setHeader('Set-Cookie', cookie.serialize('uid', newUid));
+  res.setHeader('Location', '/');
+  res.writeHead(303);
+  res.end();
+  // TODO: socket.emit();
+}
+
+function doStart(uid, req, res) {
+  if (game != null) {
+    res.writeHead(400);
+    res.end('Game already in progress');
+    return;
+  }
+  if (!isPlayerOne(uid)) {
+    res.writeHead(403);
+    res.end('Only player 1 can start the game');
+    return;
+  }
+  // TODO: Create game.
+  res.setHeader('Location', '/');
+  res.writeHead(303);
+  res.end();
+  // TODO: socket.emit();
 }
 
 function isSpectator(uid) {
@@ -38,7 +226,7 @@ function isPlayer(uid) {
 }
 
 function isPlayerOne(uid) {
-  return isPlayer(uid) && uidToPlayer[uid] === players[0];
+  return isPlayer(uid) && uidToPlayer.get(uid) === players[0];
 }
 
 function createUid() {
@@ -48,10 +236,3 @@ function createUid() {
   } while (isPlayer(uid) || isSpectator(uid));
   return uid;
 }
-
-io.on('connection', (socket) => {
-  socket.emit('news', { hello: 'world' });
-  socket.on('my other event', (data) => {
-    console.log(data);
-  });
-});

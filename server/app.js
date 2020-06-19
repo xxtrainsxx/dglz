@@ -1,5 +1,6 @@
 const app = require('http').createServer(handler)
 const io = require('socket.io')(app);
+const _ = require('lodash');
 const cookie = require('cookie');
 const fs = require('fs');
 const hb = require('handlebars');
@@ -17,6 +18,9 @@ const homeJs = readFile('../client/src/home.js');
 const lobbyHtml = readFile('../client/lobby.html');
 const lobbyJs = readFile('../client/src/lobby.js');
 const gameInProgressHtml = readFile('../client/game_in_progress.html');
+
+const deckSize = 54;
+const handSize = deckSize / 2;
 
 var game = null;
 var players = [];     // Player names.
@@ -237,4 +241,109 @@ function createUid() {
     uid = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
   } while (isPlayer(uid) || isSpectator(uid));
   return uid;
+}
+
+const value = {
+  THREE: 1,
+  FOUR: 2,
+  FIVE: 3,
+  SIX: 4,
+  SEVEN: 5,
+  EIGHT: 6,
+  NINE: 7,
+  TEN: 8,
+  JACK: 9,
+  QUEEN: 10,
+  KING: 11,
+  ACE: 12,
+  TWO: 13,
+  BLACK_JOKER: 14,
+  RED_JOKER: 15,
+};
+
+const suit = {
+  CLUBS: 1,
+  DIAMONDS: 2,
+  HEARTS: 3,
+  SPADES : 4,
+};
+
+function createCard(value, suit = undefined, isStartingThreeOfClubs = false) {
+  return {
+    value: value,
+    suit: suit,
+    isStartingThreeOfClubs: isStartingThreeOfClubs,
+  };
+}
+
+function createAndShuffleDeck(numDecks) {
+  let deck = [];
+  for (let i = 0; i < numDecks; i++) {
+    // Add threes.
+    let isStartingThreeOfClubs = i == 0;
+    deck.push(createCard(value.THREE, suit.CLUBS, isStartingThreeOfClubs));
+    for (s of [suit.DIAMONDS, suit.HEARTS, suit.SPADES]) {
+      deck.push(createCard(value.THREE, s));
+    }
+    // Add fours through twos.
+    for (v of [value.FOUR, value.FIVE, value.SIX, value.SEVEN, value.EIGHT, value.NINE, value.TEN, value.JACK, value.QUEEN, value.KING, value.ACE, value.TWO]) {
+      for (s of [suit.CLUBS, suit.DIAMONDS, suit.HEARTS, suit.SPADES]) {
+        deck.push(createCard(v, s))
+      }
+    }
+    // Add jokers.
+    deck.push(createCard(value.BLACK_JOKER));
+    deck.push(createCard(value.RED_JOKER));
+  }
+  _.shuffle(deck);
+  return deck;
+}
+
+function createPlayer(username, startingHand) {
+  return {
+    username: username,
+    hand: startingHand,
+    playHand: function(playedHand) {
+      for (card of playedHand) {
+        const i = _.findIndex(hand, function(o) {
+          return _.isEqual(o, card);
+        });
+        if (i < 0) {
+          throw 'Cannot play card not in hand';
+        }
+        hand.splice(i, 1);
+      }
+    },
+  };
+}
+
+function createGame() {
+  if (players.length % 2 != 0) {
+    throw 'Must have an even number of players';
+  }
+  let deck = createAndShuffleDeck(players.length / 2);
+  if (deck.length != players.length * handSize) {
+    throw 'Created bad deck';
+  }
+  let gamePlayers = [];
+  let firstPlayer = -1;
+  for (let p = 0; o < players.length; p++) {
+    let hand = deck.splice(0, handSize);
+    if (_.findIndex(hand, function(o) {
+      return _.isEqual(o, createCard(value.THREE, suit.CLUBS, true));
+    }) >= 0) {
+      if (firstPlayer >= 0) {
+        throw 'Multiple first players found';
+      }
+      firstPlayer = p;
+    }
+    gamePlayers.push(createPlayer(players[p], hand));
+  }
+  if (firstPlayer < 0) {
+    throw 'Could not find starting player';
+  }
+  return {
+    players: gamePlayers,
+    currentPlayer: firstPlayer,
+  };
 }

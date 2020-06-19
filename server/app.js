@@ -267,9 +267,9 @@ function createUid() {
   return uid;
 }
 
-////////////////////////////////////
-// GAME UTILS (until end of file) //
-////////////////////////////////////
+////////////////
+// GAME UTILS //
+////////////////
 
 const value = {
   THREE: 1,
@@ -308,6 +308,31 @@ const play = {
   STRAIGHT_FLUSH: 9,
   FIVE_OF_A_KIND: 10,
 };
+
+function playToString(playType) {
+  switch (playType) {
+    case PASS:
+      return 'pass';
+    case HIGH_CARD:
+      return 'high card';
+    case PAIR:
+      return 'pair';
+    case TRIPLET:
+      return 'triplet';
+    case STRAIGHT:
+      return 'straight';
+    case FLUSH:
+      return 'flush';
+    case FULL_HOUSE:
+      return 'full house';
+    case FOUR_OF_A_KIND:
+      return 'four of a kind';
+    case STRAIGHT_FLUSH:
+      return 'straight flush';
+    case FIVE_OF_A_KIND:
+      return 'five of a kind';
+  }
+}
 
 function createCard(v, s = undefined, isStartingThreeOfClubs = false) {
   return {
@@ -667,26 +692,64 @@ function createGame() {
     throw 'Could not find starting player';
   }
   return {
-    players: gamePlayers,
-    roundStarter: firstPlayer,  // Index.
+    gamePlayers: gamePlayers,
     currentPlayer: firstPlayer, // Index.
+    roundStarter: firstPlayer,  // Index.
     lastPlayer: null,           // Index.
-    lastActions: lastActions,
     previousPlay: { play: play.PASS },
+    lastActions: lastActions,   // Reset every round.
     advance: function(username, playedHand) {
-      if (username !== players[currentPlayer].username) {
-        throw 'Invalid play by ' + username + '; only the current player (' + players[currentPlayer].username + ') can play';
+      if (username !== gamePlayers[currentPlayer].username) {
+        throw 'Invalid play by ' + username + '; only the current player (' + gamePlayers[currentPlayer].username + ') can play';
       }
       let currentPlay = getPlay(playedHand);
+      checkSequence(
+        currentPlay,
+        currentPlayer === lastPlayer ? { play: play.PASS } : previousPlay
+      );
+      gamePlayers[currentPlayer].playHand(playedHand);
+      let newHand = gamePlayers[currentPlayer].hand;
       if (currentPlayer === lastPlayer) {
         roundStarter = currentPlayer;
-        previousPlay = { play: play.PASS };
+        for (let i = 0; i < lastActions.length; i++) {
+          lastActions[i] = '';
+        }
       }
-      checkSequence(currentPlay, previousPlay);
-      players[currentPlayer].playHand(playedHand);
-      if (playedHand.length === 0) {
-        lastActions[currentPlayer]
+      lastPlayer = currentPlayer;
+      previousPlay = currentPlay;
+      let actionString = '';
+      if (currentPlay.play === play.PASS) {
+        actionString = 'passed';
+      } else {
+        actionString = 'played a ' + playToString(currentPlay.play);
       }
+      lastActions[currentPlayer] = actionString;
+      let newCurrentPlayer = currentPlayer;
+      do {
+        newCurrentPlayer++;
+        if (newCurrentPlayer === currentPlayer) {
+          // TODO: Game over.
+          break;
+        }
+      } while (gamePlayers[newCurrentPlayer].hand.length === 0);
+      return newHand;
     },
   };
 }
+
+io.on('connection', (socket) => {
+  socket.on('play', (uid, playedHand) => {
+    if (!isPlayer(uid)) {
+      socket.emit('play error', {err: 'Invalid user ID'});
+    }
+    try {
+      let newHand = game.advance(uidToPlayer.get(uid), playedHand);
+      if (playedHand.length > 0) {
+        socket.emit('new hand', {hand: newHand});
+      }
+      // TODO: Broadcast play.
+    } catch (err) {
+      socket.emit('play error', {err: err.message});
+    }
+  });
+});

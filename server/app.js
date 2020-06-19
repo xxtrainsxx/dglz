@@ -18,6 +18,7 @@ const homeJs = readFile('../client/src/home.js');
 const lobbyHtml = readFile('../client/lobby.html');
 const lobbyJs = readFile('../client/src/lobby.js');
 const gameHtml = readFile('../client/game.html');
+const gameJs = readFile('../client/src/game.js');
 const gameInProgressHtml = readFile('../client/game_in_progress.html');
 
 const deckSize = 54;
@@ -98,8 +99,10 @@ function doGetGame(uid, req, res) {
       indexHtml.toString(),
       {noEscape: true},
     )({
-      script: '',
-      body: gameHtml.toString(),
+      script: gameJs,
+      body: hb.compile(gameHtml.toString())({
+        players = [],
+      }),
     }));
   } else {
     res.writeHead(200);
@@ -227,12 +230,22 @@ function doStart(uid, req, res) {
     res.end('Only player 1 can start the game');
     return;
   }
-  game = createGame();
+  try {
+    game = createGame();
+  } catch (err) {
+    res.writeHead(500);
+    res.end(err.message);
+    return;
+  }
   res.setHeader('Location', '/');
   res.writeHead(303);
   res.end();
   io.send('game started');
 }
+
+///////////////
+// UID UTILS //
+///////////////
 
 function isSpectator(uid) {
   return spectators.includes(uid);
@@ -253,6 +266,10 @@ function createUid() {
   } while (isPlayer(uid) || isSpectator(uid));
   return uid;
 }
+
+////////////////////////////////////
+// GAME UTILS (until end of file) //
+////////////////////////////////////
 
 const value = {
   THREE: 1,
@@ -279,10 +296,23 @@ const suit = {
   SPADES : 4,
 };
 
-function createCard(value, suit = undefined, isStartingThreeOfClubs = false) {
+const play = {
+  PASS: 1,
+  HIGH_CARD: 2,
+  PAIR: 3,
+  TRIPLET: 4,
+  STRAIGHT: 5,
+  FLUSH: 6,
+  FULL_HOUSE: 7,
+  FOUR_OF_A_KIND: 8,
+  STRAIGHT_FLUSH: 9,
+  FIVE_OF_A_KIND: 10,
+};
+
+function createCard(v, s = undefined, isStartingThreeOfClubs = false) {
   return {
-    value: value,
-    suit: suit,
+    value: v,
+    suit: s,
     isStartingThreeOfClubs: isStartingThreeOfClubs,
   };
 }
@@ -328,6 +358,287 @@ function createPlayer(username, startingHand) {
   };
 }
 
+function isJoker(card) {
+  return card.value === value.BLACK_JOKER || card.value === value.RED_JOKER;
+}
+
+function getPlay(playedHand) {
+  if (playedHand.length === 0) {
+    return { play: play.PASS }; 
+  }
+  if (playedHand.length == 1) {
+    return {
+      play: play.HIGH_CARD,
+      value: playedHand[0].value,
+    };
+  }
+  if (playedHand.length == 2) {
+    if (isJoker(playedHand[0]) || isJoker(playedHand[1])) {
+      return {
+        play: play.PAIR,
+        value: _.min(playedHand),
+      };
+    }
+    if (playedHand[0].value === playedHand[1].value) {
+      return {
+        play: play.PAIR,
+        value: playedHand[0].value,
+      };
+    }
+    throw 'Invalid pair';
+  }
+  if (playedHand.length == 3) {
+    let nonJokerValue = null;
+    let blackJokerUsed = false;
+    for (card of playedHand) {
+      if (isJoker(card)) {
+        if (card.value == value.BLACK_JOKER) {
+          blackJokerUsed = true;
+        }
+        continue;
+      }
+      if (nonJokerValue == null) {
+        nonJokerValue = card.value;
+        continue;
+      }
+      if (card.value !== nonJokerValue) {
+        throw 'Invalid triplet';
+      }
+    }
+    if (nonJokerValue == null) {
+      return {
+        play: play.TRIPLET,
+        value: blackJokerUsed ? value.BLACK_JOKER : value.RED_JOKER,
+      };
+    }
+    return {
+      play: play.TRIPLET,
+      value: nonJokerValue,
+    };
+  }
+  if (playedHand.length == 5) {
+    let numBlackJokers = 0;
+    let numRedJokers = 0;
+    let nonJokerValues = [];
+    let s = null;
+    let flushFound = true;
+    for (card of playedHand) {
+      if (card.value == value.BLACK_JOKER) {
+        numBlackJokers++;
+        continue;
+      }
+      if (card.value == value.RED_JOKER) {
+        numRedJokers++;
+        continue;
+      }
+      if (s == null) {
+        s = card.suit;
+      } else if (card.suit !== s) {
+        flushFound = false;
+      }
+      nonJokerValues.push(card.value == value.TWO ? 0 : card.value);
+    }
+    nonJokerValues.sort();
+    let uniqueNonJokerValues = _.uniq(nonJokerValues);
+    // Five of a kind.
+    if (uniqueNonJokerValues.length == 0) {
+      return {
+        play: play.FIVE_OF_A_KIND,
+        value: numBlackJokers > 0 ? value.BLACK_JOKER : value.RED_JOKER,
+      };
+    }
+    if (uniqueNonJokerValues.length == 1) {
+      return {
+        play: play.FIVE_OF_A_KIND,
+        value: uniqueNonJokerValues[0],
+      };
+    }
+    // Straight flush.
+    let jokersUsed = 0;
+    for (let i = 1; i < nonJokerValues.length; i++) {
+      jokersUsed += (nonJokerValues[i] - nonJokerValues[i - 1]) - 1;
+    }
+    let leftoverJokers = numBlackJokers + numRedJokers - jokersUsed;
+    let straightFound = leftoverJokers >= 0;
+    let straightHighCard = null;
+    if (straightFound) {
+      straightHighCard = Math.max(value.ACE, nonJokerValues[nonJokerValues.length - 1] + leftoverJokers);
+      if (flushFound) {
+        return {
+          play: play.STRAIGHT_FLUSH,
+          value: straightHighCard,
+        };
+      }
+    }
+    if (uniqueNonJokerValues.length == 2) {
+      let firstValue = nonJokerValues[0];
+      let numFirstValues = 1;
+      let secondValue = null;
+      let numSecondValues = 0;
+      for (let i = 1; i < nonJokerValues.length; i++) {
+        if (nonJokerValues[i] != firstValue) {
+          secondValue = nonJokerValues[i];
+          numSecondValues = nonJokerValues.length - numFirstValues;
+          break;
+        }
+        numFirstValues++;
+      }
+      // Four of a kind.
+      if (numFirstValues == 1) {
+        if (numSecondValues == 1) {
+          return {
+            play: play.FOUR_OF_A_KIND,
+            four_value: _.max(nonJokerValues),
+            one_value: _.min(nonJokerValues),
+          };
+        }
+        return {
+          play: play.FOUR_OF_A_KIND,
+          four_value: secondValue,
+          one_value: firstValue,
+        };
+      }
+      if (numSecondValues == 1) {
+        return {
+          play: play.FOUR_OF_A_KIND,
+          four_value: firstValue,
+          one_value: secondValue,
+        };
+      }
+      // Full house.
+      if (numFirstValues == 2) {
+        if (numSecondValues == 2) {
+          return {
+            play: play.FULL_HOUSE,
+            triplet_value: _.max(nonJokerValues),
+            pair_value: _.min(nonJokerValues),
+          };
+        }
+        return {
+          play: play.FULL_HOUSE,
+          triplet_value: secondValue,
+          pair_value: firstValue,
+        };
+      }
+      return {
+        play: play.FULL_HOUSE,
+        triplet_value: firstValue,
+        pair_value: secondValue,
+      };
+    }
+    // Flush.
+    if (flushFound) {
+      let values = [];
+      for (v of nonJokerValues) {
+        values.push(v);
+      }
+      for (let i = 0; i < numBlackJokers + numRedJokers; i++) {
+        values.push(value.ACE);
+      }
+      return {
+        play: play.FLUSH,
+        values: values,
+      };
+    }
+    // Straight.
+    if (straightFound) {
+      return {
+        play: play.STRAIGHT,
+        value: straightHighCard,
+      };
+    }
+    throw 'Invalid poker hand';
+  }
+  throw 'Hand length not valid: ' + playedHand.length;
+}
+
+function checkSequence(currentPlay, previousPlay) {
+  if (currentPlay.play == play.PASS || previousPlay.play == play.PASS) {
+    return;
+  }
+  if (currentPlay.play < previousPlay.play) {
+    throw 'Must not play a worse hand type than the previous';
+  }
+  if (previousPlay.play == play.HIGH_CARD) {
+    if (currentPlay.play != play.HIGH_CARD) {
+      throw 'Must play a high card on a high card';
+    }
+    if (currentPlay.value <= previousPlay.value) {
+      throw 'Must play a strictly higher high card';
+    }
+    return;
+  }
+  if (previousPlay.play == play.PAIR) {
+    if (currentPlay.play != play.PAIR) {
+      throw 'Must play a pair on a pair';
+    }
+    if (currentPlay.value <= previousPlay.value) {
+      throw 'Must play a strictly higher pair';
+    }
+    return;
+  }
+  if (previousPlay.play == play.TRIPLET) {
+    if (currentPlay.play != play.TRIPLET) {
+      throw 'Must play a triplet on a triplet';
+    }
+    if (currentPlay.value <= previousPlay.value) {
+      throw 'Must play a strictly higher triplet';
+    }
+    return;
+  }
+  if (currentPlay.play > previousPlay.play) {
+    return;
+  }
+  // Straight.
+  if (currentPlay.play == play.STRAIGHT) {
+    if (currentPlay.value > previousPlay.value) {
+      return;
+    }
+    throw 'Must play a strictly higher straight';
+  }
+  // Flush.
+  if (currentPlay.play == play.FLUSH) {
+    for (let i = currentPlay.values.length - 1; i >= 0; i--) {
+      if (currentPlay.values[i] > previousPlay.values[i]) {
+        return;
+      }
+      if (currentPlay.values[i] < previousPlay.values[i]) {
+        break;
+      }
+    }
+    throw 'Must play a strictly higher flush';
+  }
+  // Full house.
+  if (currentPlay.play == play.FULL_HOUSE) {
+    if (currentPlay.triplet_value > previousPlay.triplet_value || (currentPlay.triplet_value === previousPlay.triplet_value && currentPlay.pair_value > previousPlay.pair_value)) {
+      return;
+    }
+    throw 'Must play a strictly higher full house';
+  }
+  // Four of a kind.
+  if (currentPlay.play == play.FOUR_OF_A_KIND) {
+    if (currentPlay.four_value > previousPlay.four_value || (currentPlay.four_value === previousPlay.four_value && currentPlay.one_value > previousPlay.one_value)) {
+      return;
+    }
+    throw 'Must play a strictly higher four-of-a-kind';
+  }
+  // Straight flush.
+  if (currentPlay.play == play.STRAIGHT_FLUSH) {
+    if (currentPlay.value > previousPlay.value) {
+      return;
+    }
+    throw 'Must play a strictly higher straight flush';
+  }
+  // Five of a kind.
+  if (currentPlay.play == play.FIVE_OF_A_KIND) {
+    if (currentPlay.value > previousPlay.value) {
+      return;
+    }
+    throw 'Must play a strictly higher five-of-a-kind';
+  }
+  throw 'Unrecognized play';
+}
+
 function createGame() {
   if (players.length % 2 != 0) {
     throw 'Must have an even number of players';
@@ -338,6 +649,7 @@ function createGame() {
   }
   let gamePlayers = [];
   let firstPlayer = -1;
+  let lastActions = [];
   for (let p = 0; p < players.length; p++) {
     let hand = deck.splice(0, handSize);
     if (_.findIndex(hand, function(o) {
@@ -349,12 +661,32 @@ function createGame() {
       firstPlayer = p;
     }
     gamePlayers.push(createPlayer(players[p], hand));
+    lastActions.push('');
   }
   if (firstPlayer < 0) {
     throw 'Could not find starting player';
   }
   return {
     players: gamePlayers,
-    currentPlayer: firstPlayer,
+    roundStarter: firstPlayer,  // Index.
+    currentPlayer: firstPlayer, // Index.
+    lastPlayer: null,           // Index.
+    lastActions: lastActions,
+    previousPlay: { play: play.PASS },
+    advance: function(username, playedHand) {
+      if (username !== players[currentPlayer].username) {
+        throw 'Invalid play by ' + username + '; only the current player (' + players[currentPlayer].username + ') can play';
+      }
+      let currentPlay = getPlay(playedHand);
+      if (currentPlayer === lastPlayer) {
+        roundStarter = currentPlayer;
+        previousPlay = { play: play.PASS };
+      }
+      checkSequence(currentPlay, previousPlay);
+      players[currentPlayer].playHand(playedHand);
+      if (playedHand.length === 0) {
+        lastActions[currentPlayer]
+      }
+    },
   };
 }

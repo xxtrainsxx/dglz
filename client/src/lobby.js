@@ -18,6 +18,7 @@ setStartButtonEnable();
 
 socket.on('new player', (data) => {
   $('#player-list').append('<li style="font-size:medium;height:1.5rem">' + data.username + '</li>');
+  setStartButtonEnable();
   changePlayerAndOptionsHeight();
 });
 
@@ -28,9 +29,16 @@ socket.on('player left', (data) => {
       return false;
     }
   });
+  setStartButtonEnable();
   changePlayerAndOptionsHeight();
 });
 
 socket.on('num spectators', (data) => {
   $('#spectators').text('Spectators: ' + data.numSpectators);
+});
+
+socket.on('message', (msg) => {
+  if (msg === 'game started') {
+    location.reload();
+  }
 });

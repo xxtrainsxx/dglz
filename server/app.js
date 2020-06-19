@@ -216,11 +216,11 @@ function doStart(uid, req, res) {
     res.end('Only player 1 can start the game');
     return;
   }
-  // TODO: Create game.
+  game = createGame();
   res.setHeader('Location', '/');
   res.writeHead(303);
   res.end();
-  // TODO: io.emit();
+  io.send('game started');
 }
 
 function isSpectator(uid) {
@@ -327,7 +327,7 @@ function createGame() {
   }
   let gamePlayers = [];
   let firstPlayer = -1;
-  for (let p = 0; o < players.length; p++) {
+  for (let p = 0; p < players.length; p++) {
     let hand = deck.splice(0, handSize);
     if (_.findIndex(hand, function(o) {
       return _.isEqual(o, createCard(value.THREE, suit.CLUBS, true));

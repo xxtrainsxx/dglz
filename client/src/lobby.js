@@ -10,8 +10,8 @@ function setStartButtonEnable() {
 
 function changePlayerAndOptionsHeight() {
   let numPlayers = $('#player-list').children('li').length;
-  $('#player-div').css('height', 6.5 + (numPlayers * 1.5) + 'rem');
-  $('#options-div').css('height', 6.5 + (numPlayers * 1.5) + 'rem');
+  $('#player-div').css('height', 7 + (numPlayers * 1.5) + 'rem');
+  $('#options-div').css('height', 7 + (numPlayers * 1.5) + 'rem');
 }
 
 setStartButtonEnable();

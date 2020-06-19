@@ -1,7 +1,10 @@
+<!--TODO: Say whose turn it is.-->
+
 <div style="display:flex;justify-content:center;align-items:center">
   {{#each players}}
   <div style="flex-grow:1;text-align:center">
     <div style="display:inline-block;white-space:nowrap">
+      <!--TODO: Make this nice.-->
       {{this.username}}
       {{this.handSize}}
       {{this.lastPlayed}}
@@ -9,3 +12,11 @@
   </div>
   {{/each}}
 </div>
+
+<!--TODO: Make this nice.-->
+<!--TODO: Sort hand.-->
+<!--TODO: Add sorting direction option.-->
+{{#each hand}}
+{{this.value}}
+{{this.suit}}
+{{/each}}

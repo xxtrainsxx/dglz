@@ -74,7 +74,7 @@ function doGetHome(uid, req, res) {
       script: lobbyJs,
       body: hb.compile(lobbyHtml.toString())({
         playerOne: isPlayerOne(uid),
-        playersHeight: 6.5 + (players.length * 1.5),
+        playersHeight: 7 + (players.length * 1.5),
         players: players,
         spectators: spectators.length,
         isSpectator: isSpectator(uid),
@@ -94,6 +94,19 @@ function doGetHome(uid, req, res) {
 
 function doGetGame(uid, req, res) {
   if (isPlayer(uid) || isSpectator(uid)) {
+    let playerObjs = [];
+    let hand = null;
+    for (let i = 0; i < game.gamePlayers.length; i++) {
+      if (uidToPlayer.get(uid) === game.gamePlayers[i].username) {
+        hand = game.gamePlayers[i].hand;
+      } else {
+        playerObjs.push({
+          username: game.gamePlayers[i].username,
+          handSize: game.gamePlayers[i].hand.length,
+          lastPlayed: game.lastActions[i],
+        });
+      }
+    }
     res.writeHead(200);
     res.end(hb.compile(
       indexHtml.toString(),
@@ -101,7 +114,8 @@ function doGetGame(uid, req, res) {
     )({
       script: gameJs,
       body: hb.compile(gameHtml.toString())({
-        players = [],
+        players: playerObjs,
+        hand: hand,
       }),
     }));
   } else {
@@ -695,7 +709,7 @@ function createGame() {
     gamePlayers: gamePlayers,
     currentPlayer: firstPlayer, // Index.
     roundStarter: firstPlayer,  // Index.
-    lastPlayer: null,           // Index.
+    lastPlayer: -1,             // Index.
     previousPlay: { play: play.PASS },
     lastActions: lastActions,   // Reset every round.
     advance: function(username, playedHand) {

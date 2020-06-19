@@ -17,6 +17,7 @@ const homeHtml = readFile('../client/home.html');
 const homeJs = readFile('../client/src/home.js');
 const lobbyHtml = readFile('../client/lobby.html');
 const lobbyJs = readFile('../client/src/lobby.js');
+const gameHtml = readFile('../client/game.html');
 const gameInProgressHtml = readFile('../client/game_in_progress.html');
 
 const deckSize = 54;
@@ -90,16 +91,26 @@ function doGetHome(uid, req, res) {
   }
 }
 
-// TODO: Create in-game view.
 function doGetGame(uid, req, res) {
-  res.writeHead(200);
-  res.end(hb.compile(
-    indexHtml.toString(),
-    {noEscape: true},
-  )({
-    script: '',
-    body: gameInProgressHtml.toString(),
-  }));
+  if (isPlayer(uid) || isSpectator(uid)) {
+    res.writeHead(200);
+    res.end(hb.compile(
+      indexHtml.toString(),
+      {noEscape: true},
+    )({
+      script: '',
+      body: gameHtml.toString(),
+    }));
+  } else {
+    res.writeHead(200);
+    res.end(hb.compile(
+      indexHtml.toString(),
+      {noEscape: true},
+    )({
+      script: '',
+      body: gameInProgressHtml.toString(),
+    }));
+  }
 }
 
 function doPost(uid, req, res) {

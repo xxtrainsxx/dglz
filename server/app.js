@@ -375,8 +375,7 @@ function createAndShuffleDeck(numDecks) {
     deck.push(createCard(value.BLACK_JOKER));
     deck.push(createCard(value.RED_JOKER));
   }
-  _.shuffle(deck);
-  return deck;
+  return _.shuffle(deck);
 }
 
 function createPlayer(username, startingHand) {
@@ -691,6 +690,9 @@ function createGame() {
   let lastActions = [];
   for (let p = 0; p < players.length; p++) {
     let hand = deck.splice(0, handSize);
+    hand.sort(function(a, b) {
+      return a.value - b.value;
+    });
     if (_.findIndex(hand, function(o) {
       return _.isEqual(o, createCard(value.THREE, suit.CLUBS, true));
     }) >= 0) {

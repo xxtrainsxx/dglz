@@ -7,54 +7,50 @@
   {{/if}}
 </h1>
 <div style="height:2rem"></div>
-<table style="width:100%">
-  <tbody>
-    <tr>
-      {{#if playerOne}}
-      <td style="padding-left:30%;width:50%;position:absolute">
-      {{else}}
-      <td style="padding-left:45%;width:100%;position:absolute">
-      {{/if}}
-        <h3>Players</h3>
-        <div style="height:{{playersHeight}}rem" id="player-div">
-          <div style="height:1rem"></div>
-          <ul style="list-style:none;padding-left:5px" id="player-list">
-            {{#each players}}
-              <li style="font-size:medium;height:1.5rem">{{this}}</li>
-            {{/each}}
-          </ul>
-          <p style="font-size:medium;padding-left:5px" id="spectators">Spectators: {{spectators}}</p>
-          {{#if isSpectator}}
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#join-form">Join game</button>
-          {{> joinModal}}
-          {{else}}
-          <form method="post" action="spectate" style="margin:0;position:absolute;bottom:0"><button type="submit" class="btn btn-secondary">Become spectator</button></form>
-          {{/if}}
-        </div>
-      </td>
-      {{#if playerOne}}
-      <td style="margin-left:60%;position:absolute">
-        <h3>Options</h3>
-        <div style="height:{{playersHeight}}rem" id="options-div">
-          <div style="height:1rem"></div>
-          <form method="post" action="start" style="margin:0">
-            <div class="form-check" style="font-size:medium;height:1.5rem">
-              <input class="form-check-input" type="checkbox" value="" id="show-log" disabled>
-              <label class="form-check-label" for="show-log">
-                Show game log
-              </label>
-            </div>
-            <div class="form-check" style="font-size:medium;height:1.5rem">
-              <input class="form-check-input" type="checkbox" value="" id="choose-joker" disabled>
-              <label class="form-check-label" for="choose-joker">
-                Player chooses Joker value
-              </label>
-            </div>
-            <button type="submit" class="btn btn-primary" style="position:absolute;bottom:0" id="start-game">Start game</button>
-          </form>
-        </div>
-      </td>
-      {{/if}}
-    </tr>
-  </tbody>
-</table>
+<div style="display:flex;justify-content:center;align-items:center">
+  <div style="flex-grow:1;text-align:center">
+    <div style="display:inline-block;white-space:nowrap;text-align:left">
+      <h3>Players</h3>
+      <div style="position:relative;height:{{playersHeight}}rem" id="player-div">
+        <div style="height:1rem"></div>
+        <ul style="list-style:none;padding-left:0" id="player-list">
+          {{#each players}}
+            <li style="font-size:medium;height:1.5rem">{{this}}</li>
+          {{/each}}
+        </ul>
+        <p style="font-size:medium;padding-left:0" id="spectators">Spectators: {{spectators}}</p>
+        {{#if isSpectator}}
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#join-form">Join game</button>
+        {{> joinModal}}
+        {{else}}
+        <form method="post" action="spectate" style="margin:0;position:absolute;bottom:0"><button type="submit" class="btn btn-secondary">Become spectator</button></form>
+        {{/if}}
+      </div>
+    </div>
+  </div>
+  {{#if playerOne}}
+  <div style="flex-grow:1;text-align:center">
+    <div style="display:inline-block;white-space:nowrap;text-align:left">
+      <h3>Options</h3>
+      <div style="position:relative;height:{{playersHeight}}rem" id="options-div">
+        <div style="height:1rem"></div>
+        <form method="post" action="start" style="margin:0">
+          <div class="form-check" style="font-size:medium;height:1.5rem">
+            <input class="form-check-input" type="checkbox" value="" id="show-log" disabled>
+            <label class="form-check-label" for="show-log">
+              Show game log
+            </label>
+          </div>
+          <div class="form-check" style="font-size:medium;height:1.5rem">
+            <input class="form-check-input" type="checkbox" value="" id="choose-joker" disabled>
+            <label class="form-check-label" for="choose-joker">
+              Player chooses Joker value
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary" style="position:absolute;bottom:0" id="start-game">Start game</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+</div>

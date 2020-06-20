@@ -84,3 +84,6 @@ function overlapCards() {
 overlapCards();
 
 window.addEventListener('resize', overlapCards);
+
+// TODO: Hide/show, enable/disable buttons.
+// TODO: Button onclicks.

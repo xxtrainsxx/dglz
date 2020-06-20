@@ -1,4 +1,4 @@
-<div style="height:10rem"></div>
+<div style="height:5rem"></div>
 <h1 style="text-align:center">{{title}}</h1>
 <div style="height:2rem"></div>
 <div style="display:flex;justify-content:center;align-items:center;flex-wrap:nowrap">
@@ -13,9 +13,11 @@
   </div>
   {{/each}}
 </div>
-
+<div style="height:2rem"></div>
+<div id="last-play" style="display:flex"></div>
+<div style="height:2rem"></div>
 <!--TODO: Add sorting direction option.-->
-<div style="text-align:center">
+<div style="position:absolute;bottom:0;text-align:center;width:100%">
   <div style="display:flex;justify-content:center;align-items:center;flex-wrap:nowrap;width:100%">
     {{#each hand}}
     <div class="gamecard" style="flex-grow:1">
@@ -23,4 +25,11 @@
     </div>
     {{/each}}
   </div>
+  <div style="height:3rem"></div>
+  <div style="text-align:center">
+    <button id="play" type="button" class="btn btn-primary btn-lg">Play</button>
+    &nbsp;&nbsp;
+    <button id="pass" type="button" class="btn btn-secondary btn-lg">Pass</button>
+  </div>
+  <div style="height:3rem"></div>
 </div>

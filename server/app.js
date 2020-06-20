@@ -107,6 +107,8 @@ function doGetGame(uid, req, res) {
         });
       }
     }
+    let currentPlayerUsername = game.gamePlayers[game.currentPlayer].username;
+    let title = currentPlayerUsername === uidToPlayer.get(uid) ? 'Your turn!' : currentPlayerUsername + '\'s turn';
     res.writeHead(200);
     res.end(hb.compile(
       indexHtml.toString(),
@@ -114,6 +116,7 @@ function doGetGame(uid, req, res) {
     )({
       script: gameJs,
       body: hb.compile(gameHtml.toString())({
+        title: title,
         players: playerObjs,
         hand: hand,
       }),

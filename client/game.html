@@ -1,6 +1,7 @@
-<!--TODO: Say whose turn it is.-->
-
-<div style="display:flex;justify-content:center;align-items:center">
+<div style="height:10rem"></div>
+<h1 style="text-align:center">{{title}}</h1>
+<div style="height:2rem"></div>
+<div style="display:flex;justify-content:center;align-items:center;flex-wrap:nowrap">
   {{#each players}}
   <div style="flex-grow:1;text-align:center">
     <div style="display:inline-block;white-space:nowrap">
@@ -13,10 +14,13 @@
   {{/each}}
 </div>
 
-<!--TODO: Make this nice.-->
-<!--TODO: Sort hand.-->
 <!--TODO: Add sorting direction option.-->
-{{#each hand}}
-{{this.value}}
-{{this.suit}}
-{{/each}}
+<div style="text-align:center">
+  <div style="display:flex;justify-content:center;align-items:center;flex-wrap:nowrap;width:100%">
+    {{#each hand}}
+    <div class="gamecard" style="flex-grow:1">
+      <img id="{{this.value}}-{{this.suit}}" style="width:180px;height:250px;border-style:solid;border-color:#696969;border-width:1px">
+    </div>
+    {{/each}}
+  </div>
+</div>

@@ -69,10 +69,10 @@ $('#15-').attr('src', 'https://upload.wikimedia.org/wikipedia/commons/d/db/The_J
 
 function overlapCards() {
   let windowWidth = window.innerWidth * 0.8;
-  let numCards = $('.gamecard').length;
+  let numCards = $('.game-card').length;
   let cardWidth = (windowWidth - 180) / (numCards - 1);
   let numMarginsChanged = 0;
-  $('.gamecard').each(function() {
+  $('.game-card').each(function() {
     $(this).css('margin-right', '-' + (180 - cardWidth) + 'px');
     numMarginsChanged++;
     if (numMarginsChanged == numCards - 1) {
@@ -81,9 +81,42 @@ function overlapCards() {
   });
 }
 
+function updateButtons() {
+  let hand = [];
+  $('.game-card.card-selected').each(function() {
+    let valueAndSuit = $(this).children('img').attr('id').split('-');
+    let value = parseInt(valueAndSuit[0]);
+    if (value == 14 || value == 15) {
+      hand.push({ value: value });
+    } else {
+      hand.push({
+        value: value,
+        suit: parseInt(valueAndSuit[1]),
+      });
+    }
+  });
+  let cookies = document.cookie.split(';');
+  for (c of cookies) {
+    let keyAndValue = c.trim().split('=');
+    if (keyAndValue[0] == 'uid') {
+      socket.emit('check', parseInt(keyAndValue[1]), hand);
+      break;
+    }
+  }
+}
+
 overlapCards();
+updateButtons();
 
 window.addEventListener('resize', overlapCards);
 
-// TODO: Hide/show, enable/disable buttons.
-// TODO: Button onclicks.
+$('.game-card').click(function() {
+  $(this).toggleClass('card-selected');
+  updateButtons();
+});
+
+socket.on('num spectators', (data) => {
+  $('#spectators').text('Spectators: ' + data.numSpectators);
+});
+
+// TODO: Listen for 'play error', 'play ok', and 'new hand'.

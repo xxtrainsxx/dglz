@@ -718,7 +718,7 @@ function createGame() {
     lastPlayer: -1,             // Index.
     previousPlay: { play: play.PASS },
     lastActions: lastActions,   // Reset every round.
-    advance: function(username, playedHand) {
+    validate: function(username, playedHand) {
       if (username !== gamePlayers[currentPlayer].username) {
         throw 'Invalid play by ' + username + '; only the current player (' + gamePlayers[currentPlayer].username + ') can play';
       }
@@ -727,6 +727,10 @@ function createGame() {
         currentPlay,
         currentPlayer === lastPlayer ? { play: play.PASS } : previousPlay
       );
+      return currentPlay;
+    },
+    advance: function(username, playedHand) {
+      let currentPlay = validate(username, playedHand);
       gamePlayers[currentPlayer].playHand(playedHand);
       let newHand = gamePlayers[currentPlayer].hand;
       if (currentPlayer === lastPlayer) {
@@ -758,6 +762,17 @@ function createGame() {
 }
 
 io.on('connection', (socket) => {
+  socket.on('check', (uid, playedHand) => {
+    if (!isPlayer(uid)) {
+      socket.emit('play error', {err: 'Invalid user ID'});
+    }
+    try {
+      game.validate(uidToPlayer.get(uid), playedHand);
+      socket.emit('play ok');
+    } catch (err) {
+      socket.emit('play error', {err: err.message});
+    }
+  });
   socket.on('play', (uid, playedHand) => {
     if (!isPlayer(uid)) {
       socket.emit('play error', {err: 'Invalid user ID'});

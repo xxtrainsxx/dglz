@@ -1,18 +1,34 @@
-<div style="height:5rem"></div>
+<div style="height:3rem"></div>
 <h1 style="text-align:center">{{title}}</h1>
-<div style="height:2rem"></div>
+<div style="height:1rem"></div>
 <div style="display:flex;justify-content:center;align-items:center;flex-wrap:nowrap">
   {{#each players}}
   <div style="flex-grow:1;text-align:center">
     <div style="display:inline-block;white-space:nowrap">
-      <!--TODO: Make this nice.-->
-      {{this.username}}
-      {{this.handSize}}
-      {{this.lastPlayed}}
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">
+            {{this.username}}
+          </h5>
+          <p class="card-text">
+            {{this.handSize}} card(s) in hand
+          </p>
+          <!--TODO: Show PASSED or last hand link.-->
+          {{#if this.lastPlayed}}
+          <p class="card-text">
+            Last action: {{this.lastPlayed}}
+          </p>
+          {{/if}}
+        </div>
+      </div>
     </div>
   </div>
   {{/each}}
 </div>
+<div style="height:1rem"></div>
+<p style="font-size:medium;text-align:center" id="spectators">
+  Spectators: {{spectators}}
+</p>
 <div style="height:2rem"></div>
 <div id="last-play" style="display:flex"></div>
 <div style="height:2rem"></div>

@@ -118,6 +118,7 @@ function doGetGame(uid, req, res) {
       body: hb.compile(gameHtml.toString())({
         title: title,
         players: playerObjs,
+        spectators: spectators.length,
         hand: hand,
       }),
     }));

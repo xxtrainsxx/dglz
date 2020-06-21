@@ -120,8 +120,13 @@ socket.on('num spectators', (data) => {
 });
 
 socket.on('check ok', (data) => {
-  $('#play').prop('disabled', false);
-  $('#play').removeProp('title');
+  if (data.pass) {
+    $('#play').prop('disabled', true);
+    $('#play').prop('title', 'Select cards to play');
+  } else {
+    $('#play').prop('disabled', false);
+    $('#play').removeProp('title');
+  }
   $('#pass').prop('disabled', false);
   $('#pass').removeProp('title');
 });

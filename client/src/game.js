@@ -119,4 +119,29 @@ socket.on('num spectators', (data) => {
   $('#spectators').text('Spectators: ' + data.numSpectators);
 });
 
-// TODO: Listen for 'play error', 'play ok', and 'new hand'.
+socket.on('check ok', (data) => {
+  $('#play').prop('disabled', false);
+  $('#play').removeProp('title');
+  $('#pass').prop('disabled', false);
+  $('#pass').removeProp('title');
+});
+
+socket.on('check error', (data) => {
+  $('#play').prop('disabled', true);
+  $('#play').prop('title', data.err);
+  if (data.err == 'Not your turn') {
+    $('#pass').prop('disabled', true);
+    $('#pass').prop('title', data.err);
+  } else {
+    $('#pass').prop('disabled', false);
+    $('#pass').removeProp('title');
+  }
+});
+
+socket.on('play ok', (data) => {
+
+});
+
+socket.on('play error', (data) => {
+
+});

@@ -719,43 +719,43 @@ function createGame() {
     previousPlay: { play: play.PASS },
     lastActions: lastActions,   // Reset every round.
     validate: function(username, playedHand) {
-      if (username !== gamePlayers[currentPlayer].username) {
-        throw 'Invalid play by ' + username + '; only the current player (' + gamePlayers[currentPlayer].username + ') can play';
+      if (username !== this.gamePlayers[this.currentPlayer].username) {
+        throw 'Not your turn';
       }
       let currentPlay = getPlay(playedHand);
       checkSequence(
         currentPlay,
-        currentPlayer === lastPlayer ? { play: play.PASS } : previousPlay
+        this.currentPlayer === this.lastPlayer ? { play: play.PASS } : this.previousPlay
       );
       return currentPlay;
     },
     advance: function(username, playedHand) {
-      let currentPlay = validate(username, playedHand);
-      gamePlayers[currentPlayer].playHand(playedHand);
-      let newHand = gamePlayers[currentPlayer].hand;
-      if (currentPlayer === lastPlayer) {
-        roundStarter = currentPlayer;
-        for (let i = 0; i < lastActions.length; i++) {
-          lastActions[i] = '';
+      let currentPlay = this.validate(username, playedHand);
+      this.gamePlayers[this.currentPlayer].playHand(playedHand);
+      let newHand = this.gamePlayers[this.currentPlayer].hand;
+      if (this.currentPlayer === this.lastPlayer) {
+        this.roundStarter = this.currentPlayer;
+        for (let i = 0; i < this.lastActions.length; i++) {
+          this.lastActions[i] = '';
         }
       }
-      lastPlayer = currentPlayer;
-      previousPlay = currentPlay;
+      this.lastPlayer = this.currentPlayer;
+      this.previousPlay = currentPlay;
       let actionString = '';
       if (currentPlay.play === play.PASS) {
         actionString = 'passed';
       } else {
         actionString = 'played a ' + playToString(currentPlay.play);
       }
-      lastActions[currentPlayer] = actionString;
-      let newCurrentPlayer = currentPlayer;
+      this.lastActions[this.currentPlayer] = actionString;
+      let newCurrentPlayer = this.currentPlayer;
       do {
         newCurrentPlayer++;
-        if (newCurrentPlayer === currentPlayer) {
+        if (newCurrentPlayer === this.currentPlayer) {
           // TODO: Game over.
           break;
         }
-      } while (gamePlayers[newCurrentPlayer].hand.length === 0);
+      } while (this.gamePlayers[newCurrentPlayer].hand.length === 0);
       return newHand;
     },
   };
@@ -764,13 +764,13 @@ function createGame() {
 io.on('connection', (socket) => {
   socket.on('check', (uid, playedHand) => {
     if (!isPlayer(uid)) {
-      socket.emit('play error', {err: 'Invalid user ID'});
+      socket.emit('check error', {err: 'Invalid user ID'});
     }
     try {
       game.validate(uidToPlayer.get(uid), playedHand);
-      socket.emit('play ok');
+      socket.emit('check ok');
     } catch (err) {
-      socket.emit('play error', {err: err.message});
+      socket.emit('check error', {err: err.message});
     }
   });
   socket.on('play', (uid, playedHand) => {
@@ -780,7 +780,7 @@ io.on('connection', (socket) => {
     try {
       let newHand = game.advance(uidToPlayer.get(uid), playedHand);
       if (playedHand.length > 0) {
-        socket.emit('new hand', {hand: newHand});
+        socket.emit('play ok', {hand: newHand});
       }
       // TODO: Broadcast play.
     } catch (err) {

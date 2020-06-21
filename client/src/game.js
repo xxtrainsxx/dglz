@@ -115,6 +115,14 @@ $('.game-card').click(function() {
   updateButtons();
 });
 
+$('#play').click(function() {
+  // TODO
+});
+
+$('#pass').click(function() {
+  // TODO
+});
+
 socket.on('num spectators', (data) => {
   $('#spectators').text('Spectators: ' + data.numSpectators);
 });
@@ -144,9 +152,9 @@ socket.on('check error', (data) => {
 });
 
 socket.on('play ok', (data) => {
-
+  // TODO
 });
 
 socket.on('play error', (data) => {
-
+  // TODO
 });

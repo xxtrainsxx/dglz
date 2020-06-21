@@ -99,7 +99,7 @@ function updateButtons() {
   for (c of cookies) {
     let keyAndValue = c.trim().split('=');
     if (keyAndValue[0] == 'uid') {
-      socket.emit('check', parseInt(keyAndValue[1]), hand);
+      socket.emit('check', parseInt(keyAndValue[1]), hand.length === 0 ? null : hand);
       break;
     }
   }

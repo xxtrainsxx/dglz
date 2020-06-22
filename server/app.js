@@ -14,7 +14,6 @@ function readFile(relativePath) {
 const indexHtml = readFile('../client/index.html');
 const joinModal = readFile('../client/join_modal.html');
 const homeHtml = readFile('../client/home.html');
-const homeJs = readFile('../client/src/home.js');
 const lobbyHtml = readFile('../client/lobby.html');
 const lobbyJs = readFile('../client/src/lobby.js');
 const gameHtml = readFile('../client/game.html');
@@ -89,7 +88,7 @@ function doGetHome(uid, req, res) {
       indexHtml.toString(),
       {noEscape: true},
     )({
-      script: homeJs,
+      script: '',
       body: hb.compile(homeHtml.toString())(),
     }));
   }
@@ -100,19 +99,28 @@ function getGamePageTitle(uid) {
   return currentPlayerUsername === uidToPlayer.get(uid) ? 'Your turn!' : currentPlayerUsername + '\'s turn';
 }
 
+function getPlayerObjects(uid) {
+  let playerObjs = [];
+  for (let i = 0; i < game.gamePlayers.length; i++) {
+    if (uidToPlayer.get(uid) === game.gamePlayers[i].username) {
+      continue;
+    }
+    playerObjs.push({
+      username: game.gamePlayers[i].username,
+      handSize: game.gamePlayers[i].hand.length,
+      lastPlayed: game.lastActions[i],
+    });
+  }
+  return playerObjs;
+}
+
 function doGetGame(uid, req, res) {
   if (isPlayer(uid) || isSpectator(uid)) {
-    let playerObjs = [];
     let hand = null;
     for (let i = 0; i < game.gamePlayers.length; i++) {
       if (uidToPlayer.get(uid) === game.gamePlayers[i].username) {
         hand = game.gamePlayers[i].hand;
-      } else {
-        playerObjs.push({
-          username: game.gamePlayers[i].username,
-          handSize: game.gamePlayers[i].hand.length,
-          lastPlayed: game.lastActions[i],
-        });
+        break;
       }
     }
     res.writeHead(200);
@@ -126,8 +134,11 @@ function doGetGame(uid, req, res) {
         {noEscape: true},
       )({
         title: getGamePageTitle(uid),
-        gamePlayers: hb.compile(gamePlayersHtml.toString())({
-          players: playerObjs,
+        gamePlayers: hb.compile(
+          gamePlayersHtml.toString(),
+          {noEscape: true},
+        )({
+          players: getPlayerObjects(uid),
         }),
         spectators: spectators.length,
         gameCenter: hb.compile(gameCenterHtml.toString())(),
@@ -195,7 +206,7 @@ function doJoin(uid, req, res) {
   req.on('data', chunk => {
     let data = qs.parse(String(chunk));
     if (data.username) {
-      username = data.username;
+      username = _.escape(data.username);
     }
   });
   req.on('end', () => {
@@ -341,29 +352,86 @@ const play = {
   FIVE_OF_A_KIND: 10,
 };
 
-function playToString(playType) {
-  switch (playType) {
-    case play.PASS:
-      return 'pass';
-    case play.HIGH_CARD:
-      return 'high card';
-    case play.PAIR:
-      return 'pair';
-    case play.TRIPLET:
-      return 'triplet';
-    case play.STRAIGHT:
-      return 'straight';
-    case play.FLUSH:
-      return 'flush';
-    case play.FULL_HOUSE:
-      return 'full house';
-    case play.FOUR_OF_A_KIND:
-      return 'four of a kind';
-    case play.STRAIGHT_FLUSH:
-      return 'straight flush';
-    case play.FIVE_OF_A_KIND:
-      return 'five of a kind';
+function getUnicodePlayingCard(card) {
+  // The first of the block (a card back).
+  // https://en.wikipedia.org/wiki/Playing_cards_in_Unicode
+  let unicode = 56480;
+  switch (card.value) {
+    case value.ACE:
+      unicode += 1;
+      break;
+    case value.TWO:
+      unicode += 2;
+      break;
+    case value.THREE:
+      unicode += 3;
+      break;
+    case value.FOUR:
+      unicode += 4;
+      break;
+    case value.FIVE:
+      unicode += 5;
+      break;
+    case value.SIX:
+      unicode += 6;
+      break;
+    case value.SEVEN:
+      unicode += 7;
+      break;
+    case value.EIGHT:
+      unicode += 8;
+      break;
+    case value.NINE:
+      unicode += 9;
+      break;
+    case value.TEN:
+      unicode += 10;
+      break;
+    case value.JACK:
+      unicode += 11;
+      break;
+    // 12 is the Knight.
+    case value.QUEEN:
+      unicode += 13;
+      break;
+    case value.KING:
+      unicode += 14;
+      break;
   }
+  switch (card.suit) {
+    // Spades come first in the block.
+    case suit.HEARTS:
+      unicode += 16;
+      break;
+    case suit.DIAMONDS:
+      unicode += 16 * 2;
+      break;
+    case suit.CLUBS:
+      unicode += 16 * 3;
+      break;
+  }
+  return '\ud83c' + String.fromCharCode(unicode);
+}
+
+function playToString(playedHand) {
+  let cardString = '';
+  for (card of playedHand) {
+    let makeRed = false;
+    let unicode = '';
+    if (isJoker(card)) {
+      unicode = '🃟';
+      makeRed = card.value == value.RED_JOKER;
+    } else {
+      unicode = getUnicodePlayingCard(card);
+      makeRed = card.suit == suit.DIAMONDS || card.suit == suit.HEARTS;
+    }
+    cardString += '<span style="font-size:50px;' +
+                  (makeRed ? 'color:red' : '') +
+                  '">' +
+                  unicode +
+                  '</span>';
+  }
+  return '<br>' + cardString;
 }
 
 function createCard(v, s = undefined, isStartingThreeOfClubs = false) {
@@ -757,9 +825,9 @@ function createGame() {
       this.previousPlay = currentPlay;
       let actionString = '';
       if (currentPlay.play === play.PASS) {
-        actionString = 'passed';
+        actionString = 'PASS';
       } else {
-        actionString = 'played a ' + playToString(currentPlay.play);
+        actionString = playToString(playedHand);
       }
       this.lastActions[this.currentPlayer] = actionString;
       let newCurrentPlayer = this.currentPlayer;
@@ -803,8 +871,8 @@ io.on('connection', (socket) => {
     }
     try {
       let newHand = game.advance(uidToPlayer.get(uid), playedHand);
-      socket.emit('game update', {
-        title: getGamePageTitle(uid),
+      socket.emit('play update', {
+        getMetadataUpdate: false,
         gameCenter: hb.compile(gameCenterHtml.toString())({
           lastPlay: playedHand,
         }),
@@ -812,9 +880,33 @@ io.on('connection', (socket) => {
           hand: newHand,
         }),
       });
-      // TODO: Broadcast play with title, gamePlayers, and gameCenter.
+      socket.emit('metadata update', {
+        title: getGamePageTitle(uid),
+        // Don't need to update gamePlayers info.
+      });
+      socket.broadcast.emit('play update', {
+        getMetadataUpdate: true,
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: playedHand,
+        }),
+        // Don't need to update gameHand for other players.
+      });
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
+    }
+  });
+
+  socket.on('get metadata update', (uid) => {
+    if (isPlayer(uid)) {
+      socket.emit('metadata update', {
+        title: getGamePageTitle(uid),
+        gamePlayers: hb.compile(
+          gamePlayersHtml.toString(),
+          {noEscape: true},
+        )({
+          players: getPlayerObjects(uid),
+        }),
+      });
     }
   });
 });

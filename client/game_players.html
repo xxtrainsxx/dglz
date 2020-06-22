@@ -8,7 +8,11 @@
             {{this.username}}
           </h5>
           <p class="card-text">
+            {{#if this.handSize}}
             {{this.handSize}} card(s) in hand
+            {{else}}
+            OUT
+            {{/if}}
           </p>
           <!--TODO: Show PASSED or last hand link.-->
           {{#if this.lastPlayed}}

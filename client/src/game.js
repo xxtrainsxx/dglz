@@ -69,9 +69,12 @@ function setCardImages() {
   $('#15-').attr('src', 'https://upload.wikimedia.org/wikipedia/commons/d/db/The_Jolly_Rosso.jpg');
 }
 
-function overlapCards() {
+function overlapCardsAndCreateClickableDivs() {
   let windowWidth = window.innerWidth * 0.8;
   let numCards = $('.game-card').length;
+  if (numCards === 0) {
+    return;
+  }
   let cardWidth = (windowWidth - 180) / (numCards - 1);
   let numMarginsChanged = 0;
   $('.game-card').each(function() {
@@ -80,6 +83,50 @@ function overlapCards() {
     if (numMarginsChanged == numCards - 1) {
       return false;
     }
+  });
+  $('.clickable-game-card').remove();
+  let overlappedClickableCardWidth = 0;
+  if (numCards > 1) {
+    let left = -1;
+    $('.game-card-img').each(function() {
+      let thisLeft = $(this).offset().left;
+      if (left < 0) {
+        left = thisLeft;
+      } else {
+        overlappedClickableCardWidth = thisLeft - left;
+        return false;
+      }
+    });
+  }
+  let numClickableDivsCreated = 0;
+  $('.game-card-img').each(function() {
+    let id = $(this).attr('id') + '-clickable';
+    let offset = $(this).offset();
+    let height = $(this).height();
+    let width = numClickableDivsCreated === numCards - 1 ? $(this).width() : overlappedClickableCardWidth;
+    let styles = [
+      'position:absolute',
+      'top:' + offset.top,
+      'left:' + offset.left,
+      'height:' + height,
+      'width:' + width,
+    ];
+    $('body').append(
+      '<div class="clickable-game-card" id="' +
+      id +
+      '" style="' +
+      styles.join(';') +
+      '"></div>'
+    );
+    numClickableDivsCreated++;
+  });
+  $('.clickable-game-card').click(function() {
+    let id = $(this).attr('id');
+    let i = id.indexOf('-clickable');
+    let cardId = id.substring(0, i);
+    $(this).toggleClass('clickable-card-selected');
+    $('#' + cardId).parent().toggleClass('card-selected');
+    updateButtons();
   });
 }
 
@@ -130,18 +177,13 @@ function updateButtons() {
 }
 
 setCardImages();
-overlapCards();
+overlapCardsAndCreateClickableDivs();
 resizeCenter();
 updateButtons();
 
 window.addEventListener('resize', function() {
-  overlapCards();
+  overlapCardsAndCreateClickableDivs();
   resizeCenter();
-});
-
-$('.game-card').click(function() {
-  $(this).toggleClass('card-selected');
-  updateButtons();
 });
 
 $('#play').click(function() {
@@ -201,18 +243,28 @@ socket.on('game error', (data) => {
   );
 });
 
-socket.on('game update', (data) => {
-  $('#title').text(data.title);
-  // Players HTML is only present for the people who didn't just play.
-  if (data.hasOwnProperty('gamePlayers')) {
-    $('#game-players').html(data.gamePlayers);
+socket.on('play update', (data) => {
+  if (data.getMetadataUpdate) {
+    let uid = getUid();
+    if (uid == null) {
+      location.reload();
+    } else {
+      socket.emit('get metadata update', uid);
+    }
   }
   $('#game-center').html(data.gameCenter);
   // Hand HTML is only present for the person who just played.
   if (data.hasOwnProperty('gameHand')) {
     $('#game-hand').html(data.gameHand);
-    setCardImages();
-    overlapCards();
-    updateButtons();
+    overlapCardsAndCreateClickableDivs();
+  }
+  setCardImages();
+  updateButtons();
+});
+
+socket.on('metadata update', (data) => {
+  $('#title').text(data.title);
+  if (data.hasOwnProperty('gamePlayers')) {
+    $('#game-players').html(data.gamePlayers);
   }
 });

@@ -1,0 +1,24 @@
+<div style="display:flex;justify-content:center;align-items:center;flex-wrap:nowrap">
+  {{#each players}}
+  <div style="flex-grow:1;text-align:center">
+    <div style="display:inline-block;white-space:nowrap">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">
+            {{this.username}}
+          </h5>
+          <p class="card-text">
+            {{this.handSize}} card(s) in hand
+          </p>
+          <!--TODO: Show PASSED or last hand link.-->
+          {{#if this.lastPlayed}}
+          <p class="card-text">
+            Last action: {{this.lastPlayed}}
+          </p>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  </div>
+  {{/each}}
+</div>

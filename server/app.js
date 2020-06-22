@@ -18,6 +18,9 @@ const homeJs = readFile('../client/src/home.js');
 const lobbyHtml = readFile('../client/lobby.html');
 const lobbyJs = readFile('../client/src/lobby.js');
 const gameHtml = readFile('../client/game.html');
+const gamePlayersHtml = readFile('../client/game_players.html');
+const gameCenterHtml = readFile('../client/game_center.html');
+const gameHandHtml = readFile('../client/game_hand.html');
 const gameJs = readFile('../client/src/game.js');
 const gameInProgressHtml = readFile('../client/game_in_progress.html');
 
@@ -115,11 +118,19 @@ function doGetGame(uid, req, res) {
       {noEscape: true},
     )({
       script: gameJs,
-      body: hb.compile(gameHtml.toString())({
+      body: hb.compile(
+        gameHtml.toString(),
+        {noEscape: true},
+      )({
         title: title,
-        players: playerObjs,
+        gamePlayers: hb.compile(gamePlayersHtml.toString())({
+          players: playerObjs,
+        }),
         spectators: spectators.length,
-        hand: hand,
+        gameCenter: hb.compile(gameCenterHtml.toString())(),
+        gameHand: hb.compile(gameHandHtml.toString())({
+          hand: hand,
+        }),
       }),
     }));
   } else {

@@ -498,7 +498,7 @@ function getPlay(playedHand) {
     // Straight flush.
     let jokersUsed = 0;
     for (let i = 1; i < nonJokerValues.length; i++) {
-      jokersUsed += (nonJokerValues[i] - nonJokerValues[i - 1]) - 1;
+      jokersUsed += Math.max(0, (nonJokerValues[i] - nonJokerValues[i - 1]) - 1);
     }
     let leftoverJokers = numBlackJokers + numRedJokers - jokersUsed;
     let straightFound = leftoverJokers >= 0;
@@ -773,6 +773,7 @@ io.on('connection', (socket) => {
       socket.emit('check error', {err: err.message});
     }
   });
+
   socket.on('play', (uid, playedHand) => {
     if (!isPlayer(uid)) {
       socket.emit('play error', {err: 'Invalid user ID'});

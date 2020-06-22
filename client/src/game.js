@@ -81,7 +81,7 @@ function overlapCards() {
   });
 }
 
-function updateButtons() {
+function getSelectedCards() {
   let hand = [];
   $('.game-card.card-selected').each(function() {
     let valueAndSuit = $(this).children('img').attr('id').split('-');
@@ -95,13 +95,28 @@ function updateButtons() {
       });
     }
   });
+  return hand;
+}
+
+function getUid() {
+  let hand = getSelectedCards();
   let cookies = document.cookie.split(';');
   for (c of cookies) {
     let keyAndValue = c.trim().split('=');
     if (keyAndValue[0] == 'uid') {
-      socket.emit('check', parseInt(keyAndValue[1]), hand.length === 0 ? null : hand);
-      break;
+      return parseInt(keyAndValue[1]);
     }
+  }
+  return null;
+}
+
+function updateButtons() {
+  let hand = getSelectedCards();
+  let uid = getUid();
+  if (uid == null) {
+    location.reload();
+  } else {
+    socket.emit('check', uid, hand.length === 0 ? null : hand);
   }
 }
 
@@ -116,11 +131,22 @@ $('.game-card').click(function() {
 });
 
 $('#play').click(function() {
-  // TODO
+  let hand = getSelectedCards();
+  let uid = getUid();
+  if (uid == null) {
+    location.reload();
+  } else {
+    socket.emit('play', uid, hand);
+  }
 });
 
 $('#pass').click(function() {
-  // TODO
+  let uid = getUid();
+  if (uid == null) {
+    location.reload();
+  } else {
+    socket.emit('play', uid, null);
+  }
 });
 
 socket.on('num spectators', (data) => {

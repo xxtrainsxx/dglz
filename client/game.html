@@ -1,17 +1,23 @@
 <div style="height:3rem"></div>
 <h1 style="text-align:center">{{title}}</h1>
 <div style="height:1rem"></div>
-{{gamePlayers}}
+<div id="game-players">
+  {{gamePlayers}}
+</div>
 <div style="height:1rem"></div>
 <p style="font-size:medium;text-align:center" id="spectators">
   Spectators: {{spectators}}
 </p>
 <div style="height:2rem"></div>
-{{gameCenter}}
+<div id="game-center">
+  {{gameCenter}}
+</div>
 <div style="height:2rem"></div>
 <!--TODO: Add sorting direction option.-->
 <div style="position:absolute;bottom:0;text-align:center;width:100%">
-  {{gameHand}}
+  <div id="game-hand">
+    {{gameHand}}
+  </div>
   <div style="height:3rem"></div>
   <div style="text-align:center">
     <button id="play" type="button" class="btn btn-primary btn-lg">Play</button>

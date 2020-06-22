@@ -1,7 +1,9 @@
-<div id="last-play" style="display:flex;width:50%">
-  {{#each lastPlay}}
-  <div class="play-card">
-    <img id="{{this.value}}-{{this.suit}}" style="max-height:100%;width:auto;border-style:solid;border-color:#696969;border-width:1px">
+<div style="display:inline-block;height:100%">
+  <div id="last-play" style="display:flex;justify-content:center;align-items:center;height:100%">
+    {{#each lastPlay}}
+    <div class="play-card" style="height:100%">
+      <img id="{{this.value}}-{{this.suit}}" style="max-height:100%;width:auto;border-style:solid;border-color:#696969;border-width:1px">
+    </div>
+    {{/each}}
   </div>
-  {{/each}}
 </div>

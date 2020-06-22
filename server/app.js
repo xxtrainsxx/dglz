@@ -95,6 +95,11 @@ function doGetHome(uid, req, res) {
   }
 }
 
+function getGamePageTitle(uid) {
+  let currentPlayerUsername = game.gamePlayers[game.currentPlayer].username;
+  return currentPlayerUsername === uidToPlayer.get(uid) ? 'Your turn!' : currentPlayerUsername + '\'s turn';
+}
+
 function doGetGame(uid, req, res) {
   if (isPlayer(uid) || isSpectator(uid)) {
     let playerObjs = [];
@@ -110,8 +115,6 @@ function doGetGame(uid, req, res) {
         });
       }
     }
-    let currentPlayerUsername = game.gamePlayers[game.currentPlayer].username;
-    let title = currentPlayerUsername === uidToPlayer.get(uid) ? 'Your turn!' : currentPlayerUsername + '\'s turn';
     res.writeHead(200);
     res.end(hb.compile(
       indexHtml.toString(),
@@ -122,7 +125,7 @@ function doGetGame(uid, req, res) {
         gameHtml.toString(),
         {noEscape: true},
       )({
-        title: title,
+        title: getGamePageTitle(uid),
         gamePlayers: hb.compile(gamePlayersHtml.toString())({
           players: playerObjs,
         }),
@@ -340,25 +343,25 @@ const play = {
 
 function playToString(playType) {
   switch (playType) {
-    case PASS:
+    case play.PASS:
       return 'pass';
-    case HIGH_CARD:
+    case play.HIGH_CARD:
       return 'high card';
-    case PAIR:
+    case play.PAIR:
       return 'pair';
-    case TRIPLET:
+    case play.TRIPLET:
       return 'triplet';
-    case STRAIGHT:
+    case play.STRAIGHT:
       return 'straight';
-    case FLUSH:
+    case play.FLUSH:
       return 'flush';
-    case FULL_HOUSE:
+    case play.FULL_HOUSE:
       return 'full house';
-    case FOUR_OF_A_KIND:
+    case play.FOUR_OF_A_KIND:
       return 'four of a kind';
-    case STRAIGHT_FLUSH:
+    case play.STRAIGHT_FLUSH:
       return 'straight flush';
-    case FIVE_OF_A_KIND:
+    case play.FIVE_OF_A_KIND:
       return 'five of a kind';
   }
 }
@@ -399,13 +402,13 @@ function createPlayer(username, startingHand) {
     hand: startingHand,
     playHand: function(playedHand) {
       for (card of playedHand) {
-        const i = _.findIndex(hand, function(o) {
-          return _.isEqual(o, card);
+        const i = _.findIndex(this.hand, function(o) {
+          return o.value === card.value && o.suit === card.suit;
         });
         if (i < 0) {
           throw {message: 'Cannot play card not in hand'};
         }
-        hand.splice(i, 1);
+        this.hand.splice(i, 1);
       }
     },
   };
@@ -761,15 +764,24 @@ function createGame() {
       this.lastActions[this.currentPlayer] = actionString;
       let newCurrentPlayer = this.currentPlayer;
       do {
-        newCurrentPlayer++;
+        newCurrentPlayer = (newCurrentPlayer + 1) % this.gamePlayers.length;
         if (newCurrentPlayer === this.currentPlayer) {
           // TODO: Game over.
           break;
         }
       } while (this.gamePlayers[newCurrentPlayer].hand.length === 0);
+      this.currentPlayer = newCurrentPlayer;
       return newHand;
     },
   };
+}
+
+function sendErrorAndDeleteGame(errMessage) {
+  io.emit('game error', {err: errMessage});
+  game = null;
+  players = [];
+  uidToPlayer = new Map();
+  spectators = [];
 }
 
 io.on('connection', (socket) => {
@@ -787,16 +799,22 @@ io.on('connection', (socket) => {
 
   socket.on('play', (uid, playedHand) => {
     if (!isPlayer(uid)) {
-      socket.emit('play error', {err: 'Invalid user ID'});
+      sendErrorAndDeleteGame('User with invalid ID attempted to play');
     }
     try {
       let newHand = game.advance(uidToPlayer.get(uid), playedHand);
-      if (playedHand.length > 0) {
-        socket.emit('play ok', {hand: newHand});
-      }
-      // TODO: Broadcast play.
+      socket.emit('game update', {
+        title: getGamePageTitle(uid),
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: playedHand,
+        }),
+        gameHand: hb.compile(gameHandHtml.toString())({
+          hand: newHand,
+        }),
+      });
+      // TODO: Broadcast play with title, gamePlayers, and gameCenter.
     } catch (err) {
-      socket.emit('play error', {err: err.message});
+      sendErrorAndDeleteGame(err.message);
     }
   });
 });

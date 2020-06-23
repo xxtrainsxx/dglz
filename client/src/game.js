@@ -69,6 +69,47 @@ function setCardImages() {
   $('#15-').attr('src', 'https://upload.wikimedia.org/wikipedia/commons/d/db/The_Jolly_Rosso.jpg');
 }
 
+function recreateClickableCardTops() {
+  $('.clickable-card-top').remove();
+  let numCards = $('.game-card').length;
+  if (numCards <= 1) {
+    return;
+  }
+  let numClickableDivsCreated = 0;
+  $('.game-card-img').each(function() {
+    let id = $(this).attr('id') + '-clickable';
+    let offset = $(this).offset();
+    let lastCard = numClickableDivsCreated === numCards - 1;
+    if (lastCard) {
+      return false;
+    }
+    if (!$(this).parent().hasClass('card-selected')) {
+      return;
+    }
+    let nextCardSelected = $(this).parent().next('.card-selected');
+    let nextCardSelectedLeftOffset = nextCardSelected.length > 0 ? nextCardSelected.offset().left : Number.MAX_SAFE_INTEGER;
+    let cardTopWidth = Math.min($(this).width(), nextCardSelectedLeftOffset - offset.left);
+    let clickableGameCardTop = $.parseHTML('<div class="clickable-card-top"></div>')[0];
+    clickableGameCardTop.id = id + '-top';
+    clickableGameCardTop.style.position = 'absolute';
+    clickableGameCardTop.style.top = offset.top + 'px';
+    clickableGameCardTop.style.left = offset.left + 'px';
+    clickableGameCardTop.style.height = '60px';
+    clickableGameCardTop.style.width = cardTopWidth + 'px';
+    $('body').append(clickableGameCardTop);
+    numClickableDivsCreated++;
+  });
+  $('.clickable-card-top').click(function() {
+    let id = $(this).attr('id');
+    let i = id.indexOf('-clickable-top');
+    let cardId = id.substring(0, i);
+    $('#' + cardId + '-clickable').toggleClass('clickable-card-selected');
+    $('#' + cardId).parent().toggleClass('card-selected');
+    updateButtons();
+    recreateClickableCardTops();
+  });
+}
+
 function overlapCardsAndCreateClickableDivs() {
   let windowWidth = window.innerWidth * 0.8;
   let numCards = $('.game-card').length;
@@ -91,7 +132,7 @@ function overlapCardsAndCreateClickableDivs() {
       $(this).css('flex-grow', '');
     });
   }
-  $('.clickable-game-card').remove();
+  $('.clickable-card').remove();
   let overlappedClickableCardWidth = 0;
   if (numCards > 1) {
     let left = -1;
@@ -110,30 +151,30 @@ function overlapCardsAndCreateClickableDivs() {
     let id = $(this).attr('id') + '-clickable';
     let offset = $(this).offset();
     let height = $(this).height();
-    let width = numClickableDivsCreated === numCards - 1 ? $(this).width() : overlappedClickableCardWidth;
-    let styles = [
-      'position:absolute',
-      'top:' + offset.top,
-      'left:' + offset.left,
-      'height:' + height,
-      'width:' + width,
-    ];
-    $('body').append(
-      '<div class="clickable-game-card" id="' +
-      id +
-      '" style="' +
-      styles.join(';') +
-      '"></div>'
-    );
+    let lastCard = numClickableDivsCreated === numCards - 1;
+    let width = lastCard ? $(this).width() : overlappedClickableCardWidth;
+    let clickableGameCard = $.parseHTML('<div class="clickable-card"></div>')[0];
+    clickableGameCard.id = id;
+    clickableGameCard.style.position = 'absolute';
+    clickableGameCard.style.top = offset.top + 'px';
+    clickableGameCard.style.left = offset.left + 'px';
+    clickableGameCard.style.height = height + 'px';
+    clickableGameCard.style.width = width + 'px';
+    if ($(this).parent().hasClass('card-selected')) {
+      clickableGameCard.classList.add('clickable-card-selected');
+    }
+    $('body').append(clickableGameCard);
     numClickableDivsCreated++;
   });
-  $('.clickable-game-card').click(function() {
+  recreateClickableCardTops();
+  $('.clickable-card').click(function() {
     let id = $(this).attr('id');
     let i = id.indexOf('-clickable');
     let cardId = id.substring(0, i);
     $(this).toggleClass('clickable-card-selected');
     $('#' + cardId).parent().toggleClass('card-selected');
     updateButtons();
+    recreateClickableCardTops();
   });
 }
 

@@ -256,9 +256,12 @@ socket.on('play update', (data) => {
   // Hand HTML is only present for the person who just played.
   if (data.hasOwnProperty('gameHand')) {
     $('#game-hand').html(data.gameHand);
+    setCardImages();
     overlapCardsAndCreateClickableDivs();
+  } else {
+    setCardImages();
   }
-  setCardImages();
+  resizeCenter();
   updateButtons();
 });
 
@@ -266,5 +269,6 @@ socket.on('metadata update', (data) => {
   $('#title').text(data.title);
   if (data.hasOwnProperty('gamePlayers')) {
     $('#game-players').html(data.gamePlayers);
+    resizeCenter();
   }
 });

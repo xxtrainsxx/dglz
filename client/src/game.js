@@ -86,7 +86,7 @@ function recreateClickableCardTops() {
     if (!$(this).parent().hasClass('card-selected')) {
       return;
     }
-    let nextCardSelected = $(this).parent().next('.card-selected');
+    let nextCardSelected = $(this).parent().nextAll('.card-selected').eq(0);
     let nextCardSelectedLeftOffset = nextCardSelected.length > 0 ? nextCardSelected.offset().left : Number.MAX_SAFE_INTEGER;
     let cardTopWidth = Math.min($(this).width(), nextCardSelectedLeftOffset - offset.left);
     let clickableGameCardTop = $.parseHTML('<div class="clickable-card-top"></div>')[0];

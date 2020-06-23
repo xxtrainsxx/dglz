@@ -156,12 +156,14 @@ function overlapCardsAndCreateClickableDivs() {
     let clickableGameCard = $.parseHTML('<div class="clickable-card"></div>')[0];
     clickableGameCard.id = id;
     clickableGameCard.style.position = 'absolute';
-    clickableGameCard.style.top = offset.top + 'px';
     clickableGameCard.style.left = offset.left + 'px';
     clickableGameCard.style.height = height + 'px';
     clickableGameCard.style.width = width + 'px';
     if ($(this).parent().hasClass('card-selected')) {
       clickableGameCard.classList.add('clickable-card-selected');
+      clickableGameCard.style.top = offset.top + 60 + 'px';
+    } else {
+      clickableGameCard.style.top = offset.top + 'px';
     }
     $('body').append(clickableGameCard);
     numClickableDivsCreated++;

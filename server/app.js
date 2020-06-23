@@ -828,15 +828,9 @@ function createGame() {
     lastPlayer: -1,             // Index.
     previousPlay: {play: play.PASS},
     lastActions: lastActions,   // Reset every round.
-    getNumTributes: function() {
-      let numTributes = 0;
-      for (p of this.gamePlayers) {
-        if (p.hand.length > 0) {
-          numTributes++;
-        }
-      }
-      return numTributes;
-    },  // Should only be called once the game is over.
+    gameState: gameState.IN_PROGRESS,
+    teamOneOut: [],
+    teamTwoOut: [],
     getPlayersByTeam: function() {
       let teamOne = [];
       let teamTwo = [];
@@ -853,6 +847,9 @@ function createGame() {
       };
     },
     getGameState: function() {
+      if (this.gameState !== gameState.IN_PROGRESS) {
+        return this.gameState;
+      }
       let playersByTeam = this.getPlayersByTeam();
       let teamOneHasCards = false;
       let teamTwoHasCards = false;
@@ -871,8 +868,25 @@ function createGame() {
           break;
         }
       }
-      return teamOneHasCards ? gameState.TEAM_TWO_WON : gameState.TEAM_ONE_WON;
+      let newGameState = teamOneHasCards ? gameState.TEAM_TWO_WON : gameState.TEAM_ONE_WON;
+      this.gameState = newGameState;
+      return newGameState;
     },
+    getTributes: function() {
+      let tributes = [];
+      let receivers = this.getGameState() === gameState.TEAM_ONE_WON ? this.teamOneOut : this.teamTwoOut;
+      let receiversIndex = 0;
+      for (p of this.gamePlayers) {
+        if (p.hand.length > 0) {
+          tributes.push({
+            giver: p.username,
+            receiver: this.receivers[receiversIndex],
+          });
+          receiversIndex++;
+        }
+      }
+      return tributes;
+    },  // Should only be called once the game is over.
     validate: function(username, playedHand) {
       if (username !== this.gamePlayers[this.currentPlayer].username) {
         throw {message: 'Not your turn'};
@@ -892,6 +906,13 @@ function createGame() {
         return {state: currentGameState};
       }
       let newHand = this.gamePlayers[this.currentPlayer].hand;
+      if (newHand.length === 0) {
+        if (this.currentPlayer % 2 === 0) {
+          this.teamOneOut.push(this.gamePlayers[this.currentPlayer].username);
+        } else {
+          this.teamTwoOut.push(this.gamePlayers[this.currentPlayer].username);
+        }
+      }
       if (this.currentPlayer === this.lastPlayer) {
         this.roundStarter = this.currentPlayer;
         for (let i = 0; i < this.lastActions.length; i++) {
@@ -1014,8 +1035,14 @@ io.on('connection', (socket) => {
 
   socket.on('message', (msg) => {
     if (msg === 'play again') {
-      // TODO: Reset game but with tributes.
-      io.send('reload');
+      try {
+        let tributes = game.getTributes();
+        // TODO: Record tributes somewhere.
+        game = createGame();
+        io.send('reload');
+      } catch (err) {
+        io.emit('game error', {err: err.message});
+      }
       return;
     }
     if (msg === 'back to lobby') {

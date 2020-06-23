@@ -93,7 +93,7 @@ function overlapCardsAndCreateClickableDivs() {
       if (left < 0) {
         left = thisLeft;
       } else {
-        overlappedClickableCardWidth = thisLeft - left;
+        overlappedClickableCardWidth = Math.min($(this).width(), thisLeft - left);
         return false;
       }
     });

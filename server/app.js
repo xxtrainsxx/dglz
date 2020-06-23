@@ -1015,7 +1015,7 @@ io.on('connection', (socket) => {
   socket.on('message', (msg) => {
     if (msg === 'play again') {
       // TODO: Reset game but with tributes.
-      io.send();
+      io.send('reload');
       return;
     }
     if (msg === 'back to lobby') {
@@ -1023,7 +1023,7 @@ io.on('connection', (socket) => {
       players = [];
       uidToPlayer = new Map();
       spectators = [];
-      io.send('back to lobby');
+      io.send('reload');
     }
   });
 });

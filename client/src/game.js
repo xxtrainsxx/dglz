@@ -69,12 +69,24 @@ function setCardImages() {
   $('#15-').attr('src', 'https://upload.wikimedia.org/wikipedia/commons/d/db/The_Jolly_Rosso.jpg');
 }
 
-function recreateClickableCardTops() {
-  $('.clickable-card-top').remove();
+function getDifferenceBetweenVisibleAndCardWidths() {
+  let windowWidth = window.innerWidth * 0.8;
   let numCards = $('.game-card').length;
   if (numCards <= 1) {
+    return 0;
+  }
+  let cardWidth = $('.game-card-img').width();
+  let visibleWidth = (windowWidth - cardWidth) / (numCards - 1);
+  return cardWidth - visibleWidth;
+}
+
+function recreateClickableCardTops() {
+  $('.clickable-card-top').remove();
+  let widthDifference = getDifferenceBetweenVisibleAndCardWidths();
+  if (widthDifference <= 0) {
     return;
   }
+  let numCards = $('.game-card').length;
   let numClickableDivsCreated = 0;
   $('.game-card-img').each(function() {
     let id = $(this).attr('id') + '-clickable';
@@ -111,17 +123,15 @@ function recreateClickableCardTops() {
 }
 
 function overlapCardsAndCreateClickableDivs() {
-  let windowWidth = window.innerWidth * 0.8;
   let numCards = $('.game-card').length;
   if (numCards === 0) {
     return;
   }
-  let cardWidth = $('.game-card-img').width();
-  let visibleWidth = (windowWidth - cardWidth) / (numCards - 1);
+  let widthDifference = getDifferenceBetweenVisibleAndCardWidths();
   let numMarginsChanged = 0;
-  if (visibleWidth < cardWidth) {
+  if (widthDifference > 0) {
     $('.game-card').each(function() {
-      $(this).css('margin-right', '-' + (cardWidth - visibleWidth) + 'px');
+      $(this).css('margin-right', '-' + widthDifference + 'px');
       numMarginsChanged++;
       if (numMarginsChanged == numCards - 1) {
         return false;

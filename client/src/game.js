@@ -75,15 +75,22 @@ function overlapCardsAndCreateClickableDivs() {
   if (numCards === 0) {
     return;
   }
-  let cardWidth = (windowWidth - 180) / (numCards - 1);
+  let cardWidth = $('.game-card-img').width();
+  let visibleWidth = (windowWidth - cardWidth) / (numCards - 1);
   let numMarginsChanged = 0;
-  $('.game-card').each(function() {
-    $(this).css('margin-right', '-' + (180 - cardWidth) + 'px');
-    numMarginsChanged++;
-    if (numMarginsChanged == numCards - 1) {
-      return false;
-    }
-  });
+  if (visibleWidth < cardWidth) {
+    $('.game-card').each(function() {
+      $(this).css('margin-right', '-' + (cardWidth - visibleWidth) + 'px');
+      numMarginsChanged++;
+      if (numMarginsChanged == numCards - 1) {
+        return false;
+      }
+    });
+  } else {
+    $('.game-card').each(function() {
+      $(this).css('flex-grow', '');
+    });
+  }
   $('.clickable-game-card').remove();
   let overlappedClickableCardWidth = 0;
   if (numCards > 1) {

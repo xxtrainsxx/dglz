@@ -809,6 +809,15 @@ function createGame() {
     lastPlayer: -1,             // Index.
     previousPlay: {play: play.PASS},
     lastActions: lastActions,   // Reset every round.
+    getNumTributes: function() {
+      let numTributes = 0;
+      for (p of this.gamePlayers) {
+        if (p.hand.length > 0) {
+          numTributes++;
+        }
+      }
+      return numTributes;
+    },  // Should only be called once the game is over.
     getPlayersByTeam: function() {
       let teamOne = [];
       let teamTwo = [];
@@ -861,7 +870,7 @@ function createGame() {
       this.gamePlayers[this.currentPlayer].playHand(playedHand);
       let currentGameState = this.getGameState();
       if (currentGameState != gameState.IN_PROGRESS) {
-        return currentGameState;
+        return {state: currentGameState};
       }
       let newHand = this.gamePlayers[this.currentPlayer].hand;
       if (this.currentPlayer === this.lastPlayer) {
@@ -884,7 +893,10 @@ function createGame() {
         newCurrentPlayer = (newCurrentPlayer + 1) % this.gamePlayers.length;
       } while (this.gamePlayers[newCurrentPlayer].hand.length === 0);
       this.currentPlayer = newCurrentPlayer;
-      return newHand;
+      return {
+        state: gameState.IN_PROGRESS,
+        newHand: newHand,
+      };
     },
   };
 }
@@ -899,10 +911,6 @@ function sendErrorAndDeleteGame(errMessage) {
 
 function sendGameOverAndDeleteGame(message) {
   io.emit('game over', {message: message});
-  game = null;
-  players = [];
-  uidToPlayer = new Map();
-  spectators = [];
 }
 
 function getUsernameString(playerList) {
@@ -947,11 +955,11 @@ io.on('connection', (socket) => {
     try {
       let result = game.advance(uidToPlayer.get(uid), playedHand);
       let playersByTeam = game.getPlayersByTeam();
-      if (result === gameState.TEAM_ONE_WON) {
+      if (result.state === gameState.TEAM_ONE_WON) {
         sendGameOverAndDeleteGame(getUsernameString(playersByTeam.teamOne));
         return;
       }
-      if (result === gameState.TEAM_TWO_WON) {
+      if (result.state === gameState.TEAM_TWO_WON) {
         sendGameOverAndDeleteGame(getUsernameString(playersByTeam.teamTwo));
         return;
       }

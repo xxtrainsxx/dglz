@@ -352,6 +352,12 @@ const play = {
   FIVE_OF_A_KIND: 10,
 };
 
+const gameState = {
+  IN_PROGRESS: 1,
+  TEAM_ONE_WON: 2,
+  TEAM_TWO_WON: 3,
+}
+
 function getUnicodePlayingCard(card) {
   // The first of the block (a card back).
   // https://en.wikipedia.org/wiki/Playing_cards_in_Unicode
@@ -803,6 +809,42 @@ function createGame() {
     lastPlayer: -1,             // Index.
     previousPlay: {play: play.PASS},
     lastActions: lastActions,   // Reset every round.
+    getPlayersByTeam: function() {
+      let teamOne = [];
+      let teamTwo = [];
+      for (let p = 0; p < this.gamePlayers.length; p++) {
+        if (p % 2 === 0) {
+          teamOne.push(this.gamePlayers[p]);
+        } else {
+          teamTwo.push(this.gamePlayers[p]);
+        }
+      }
+      return {
+        teamOne: teamOne,
+        teamTwo: teamTwo,
+      };
+    },
+    getGameState: function() {
+      let playersByTeam = this.getPlayersByTeam();
+      let teamOneHasCards = false;
+      let teamTwoHasCards = false;
+      for (p of playersByTeam.teamOne) {
+        if (p.hand.length > 0) {
+          teamOneHasCards = true;
+          break;
+        }
+      }
+      for (p of playersByTeam.teamTwo) {
+        if (p.hand.length > 0) {
+          if (teamOneHasCards) {
+            return gameState.IN_PROGRESS;
+          }
+          teamTwoHasCards = true;
+          break;
+        }
+      }
+      return teamOneHasCards ? gameState.TEAM_TWO_WON : gameState.TEAM_ONE_WON;
+    },
     validate: function(username, playedHand) {
       if (username !== this.gamePlayers[this.currentPlayer].username) {
         throw {message: 'Not your turn'};
@@ -817,6 +859,10 @@ function createGame() {
     advance: function(username, playedHand) {
       let currentPlay = this.validate(username, playedHand);
       this.gamePlayers[this.currentPlayer].playHand(playedHand);
+      let currentGameState = this.getGameState();
+      if (currentGameState != gameState.IN_PROGRESS) {
+        return currentGameState;
+      }
       let newHand = this.gamePlayers[this.currentPlayer].hand;
       if (this.currentPlayer === this.lastPlayer) {
         this.roundStarter = this.currentPlayer;
@@ -836,10 +882,6 @@ function createGame() {
       let newCurrentPlayer = this.currentPlayer;
       do {
         newCurrentPlayer = (newCurrentPlayer + 1) % this.gamePlayers.length;
-        if (newCurrentPlayer === this.currentPlayer) {
-          // TODO: Game over.
-          break;
-        }
       } while (this.gamePlayers[newCurrentPlayer].hand.length === 0);
       this.currentPlayer = newCurrentPlayer;
       return newHand;
@@ -853,6 +895,27 @@ function sendErrorAndDeleteGame(errMessage) {
   players = [];
   uidToPlayer = new Map();
   spectators = [];
+}
+
+function getUsernameString(playerList) {
+  if (playerList.length === 0) {
+    return '';
+  }
+  if (playerList.length === 1) {
+    return playerList[0].username + ' wins!';
+  }
+  if (playerList.length === 2) {
+    return playerList[0].username + ' and ' + playerList[1].username + ' win!';
+  }
+  let usernameString = '';
+  for (let p = 0; p < playerList.length; p++) {
+    if (p === playerList.length - 1) {
+      usernameString += ' and ' + playerList[p].username;
+    } else {
+      usernameString += playerList[p].username + ', ';
+    }
+  }
+  return usernameString + ' win!';
 }
 
 io.on('connection', (socket) => {
@@ -873,27 +936,44 @@ io.on('connection', (socket) => {
       sendErrorAndDeleteGame('User with invalid ID attempted to play');
     }
     try {
-      let newHand = game.advance(uidToPlayer.get(uid), playedHand);
-      socket.emit('play update', {
-        getMetadataUpdate: false,
-        gameCenter: hb.compile(gameCenterHtml.toString())({
-          lastPlay: playedHand,
-        }),
-        gameHand: hb.compile(gameHandHtml.toString())({
-          hand: newHand,
-        }),
-      });
-      socket.emit('metadata update', {
-        title: getGamePageTitle(uid),
-        // Don't need to update gamePlayers info.
-      });
-      socket.broadcast.emit('play update', {
-        getMetadataUpdate: true,
-        gameCenter: hb.compile(gameCenterHtml.toString())({
-          lastPlay: playedHand,
-        }),
-        // Don't need to update gameHand for other players.
-      });
+      let result = game.advance(uidToPlayer.get(uid), playedHand);
+      let playersByTeam = game.getPlayersByTeam();
+      if (result === gameState.TEAM_ONE_WON) {
+        socket.emit('game over', {
+          message: getUsernameString(playersByTeam.teamOne),
+        });
+        socket.broadcast.emit('game over', {
+          message: getUsernameString(playersByTeam.teamOne),
+        });
+      } else if (result === gameState.TEAM_TWO_WON) {
+        socket.emit('game over', {
+          message: getUsernameString(playersByTeam.teamTwo),
+        });
+        socket.broadcast.emit('game over', {
+          message: getUsernameString(playersByTeam.teamTwo),
+        });
+      } else {
+        socket.emit('play update', {
+          getMetadataUpdate: false,
+          gameCenter: hb.compile(gameCenterHtml.toString())({
+            lastPlay: playedHand,
+          }),
+          gameHand: hb.compile(gameHandHtml.toString())({
+            hand: result,
+          }),
+        });
+        socket.emit('metadata update', {
+          title: getGamePageTitle(uid),
+          // Don't need to update gamePlayers info.
+        });
+        socket.broadcast.emit('play update', {
+          getMetadataUpdate: true,
+          gameCenter: hb.compile(gameCenterHtml.toString())({
+            lastPlay: playedHand,
+          }),
+          // Don't need to update gameHand for other players.
+        });
+      }
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
     }

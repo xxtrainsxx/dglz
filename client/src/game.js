@@ -332,3 +332,13 @@ socket.on('metadata update', (data) => {
     resizeCenter();
   }
 });
+
+socket.on('game over', (data) => {
+  $('body').html(
+    '<div class="center" style="text-align:center">' +
+    '<h1>Game Over</h1>' +
+    '<br>' +
+    data.message +
+    '</div>'
+  );
+});

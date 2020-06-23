@@ -469,6 +469,9 @@ function createPlayer(username, startingHand) {
     username: username,
     hand: startingHand,
     playHand: function(playedHand) {
+      if (playedHand == null) {
+        return;
+      }
       for (card of playedHand) {
         const i = _.findIndex(this.hand, function(o) {
           return o.value === card.value && o.suit === card.suit;
@@ -680,9 +683,6 @@ function checkSequence(currentPlay, previousPlay) {
   if (currentPlay.play == play.PASS || previousPlay.play == play.PASS) {
     return;
   }
-  if (currentPlay.play < previousPlay.play) {
-    throw {message: 'Must not play a worse hand type than the previous'};
-  }
   if (previousPlay.play == play.HIGH_CARD) {
     if (currentPlay.play != play.HIGH_CARD) {
       throw {message: 'Must play a high card on a high card'};
@@ -713,12 +713,15 @@ function checkSequence(currentPlay, previousPlay) {
   if (currentPlay.play > previousPlay.play) {
     return;
   }
+  if (currentPlay.play < previousPlay.play) {
+    throw {message: 'Must not play a worse hand type than the previous'};
+  }
   // Straight.
   if (currentPlay.play == play.STRAIGHT) {
     if (currentPlay.value > previousPlay.value) {
       return;
     }
-    throw {message: 'Must play a strictly higher straight'};
+    throw {message: 'Must play a strictly higher straight or a better poker hand'};
   }
   // Flush.
   if (currentPlay.play == play.FLUSH) {
@@ -730,28 +733,28 @@ function checkSequence(currentPlay, previousPlay) {
         break;
       }
     }
-    throw {message: 'Must play a strictly higher flush'};
+    throw {message: 'Must play a strictly higher flush or a better poker hand'};
   }
   // Full house.
   if (currentPlay.play == play.FULL_HOUSE) {
     if (currentPlay.triplet_value > previousPlay.triplet_value || (currentPlay.triplet_value === previousPlay.triplet_value && currentPlay.pair_value > previousPlay.pair_value)) {
       return;
     }
-    throw {message: 'Must play a strictly higher full house'};
+    throw {message: 'Must play a strictly higher full house or a better poker hand'};
   }
   // Four of a kind.
   if (currentPlay.play == play.FOUR_OF_A_KIND) {
     if (currentPlay.four_value > previousPlay.four_value || (currentPlay.four_value === previousPlay.four_value && currentPlay.one_value > previousPlay.one_value)) {
       return;
     }
-    throw {message: 'Must play a strictly higher four-of-a-kind'};
+    throw {message: 'Must play a strictly higher four-of-a-kind or a better poker hand'};
   }
   // Straight flush.
   if (currentPlay.play == play.STRAIGHT_FLUSH) {
     if (currentPlay.value > previousPlay.value) {
       return;
     }
-    throw {message: 'Must play a strictly higher straight flush'};
+    throw {message: 'Must play a strictly higher straight flush or a better poker hand'};
   }
   // Five of a kind.
   if (currentPlay.play == play.FIVE_OF_A_KIND) {

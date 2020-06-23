@@ -897,6 +897,14 @@ function sendErrorAndDeleteGame(errMessage) {
   spectators = [];
 }
 
+function sendGameOverAndDeleteGame(message) {
+  io.emit('game over', {message: message});
+  game = null;
+  players = [];
+  uidToPlayer = new Map();
+  spectators = [];
+}
+
 function getUsernameString(playerList) {
   if (playerList.length === 0) {
     return '';
@@ -934,46 +942,39 @@ io.on('connection', (socket) => {
   socket.on('play', (uid, playedHand) => {
     if (!isPlayer(uid)) {
       sendErrorAndDeleteGame('User with invalid ID attempted to play');
+      return;
     }
     try {
       let result = game.advance(uidToPlayer.get(uid), playedHand);
       let playersByTeam = game.getPlayersByTeam();
       if (result === gameState.TEAM_ONE_WON) {
-        socket.emit('game over', {
-          message: getUsernameString(playersByTeam.teamOne),
-        });
-        socket.broadcast.emit('game over', {
-          message: getUsernameString(playersByTeam.teamOne),
-        });
-      } else if (result === gameState.TEAM_TWO_WON) {
-        socket.emit('game over', {
-          message: getUsernameString(playersByTeam.teamTwo),
-        });
-        socket.broadcast.emit('game over', {
-          message: getUsernameString(playersByTeam.teamTwo),
-        });
-      } else {
-        socket.emit('play update', {
-          getMetadataUpdate: false,
-          gameCenter: hb.compile(gameCenterHtml.toString())({
-            lastPlay: playedHand,
-          }),
-          gameHand: hb.compile(gameHandHtml.toString())({
-            hand: result,
-          }),
-        });
-        socket.emit('metadata update', {
-          title: getGamePageTitle(uid),
-          // Don't need to update gamePlayers info.
-        });
-        socket.broadcast.emit('play update', {
-          getMetadataUpdate: true,
-          gameCenter: hb.compile(gameCenterHtml.toString())({
-            lastPlay: playedHand,
-          }),
-          // Don't need to update gameHand for other players.
-        });
+        sendGameOverAndDeleteGame(getUsernameString(playersByTeam.teamOne));
+        return;
       }
+      if (result === gameState.TEAM_TWO_WON) {
+        sendGameOverAndDeleteGame(getUsernameString(playersByTeam.teamTwo));
+        return;
+      }
+      socket.emit('play update', {
+        getMetadataUpdate: false,
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: playedHand,
+        }),
+        gameHand: hb.compile(gameHandHtml.toString())({
+          hand: result,
+        }),
+      });
+      socket.emit('metadata update', {
+        title: getGamePageTitle(uid),
+        // Don't need to update gamePlayers info.
+      });
+      socket.broadcast.emit('play update', {
+        getMetadataUpdate: true,
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: playedHand,
+        }),
+        // Don't need to update gameHand for other players.
+      });
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
     }

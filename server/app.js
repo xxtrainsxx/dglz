@@ -589,7 +589,7 @@ function getPlay(playedHand) {
     let straightFound = leftoverJokers >= 0;
     let straightHighCard = null;
     if (straightFound) {
-      straightHighCard = Math.max(value.ACE, nonJokerValues[nonJokerValues.length - 1] + leftoverJokers);
+      straightHighCard = Math.min(value.ACE, nonJokerValues[nonJokerValues.length - 1] + leftoverJokers);
       if (flushFound) {
         return {
           play: play.STRAIGHT_FLUSH,

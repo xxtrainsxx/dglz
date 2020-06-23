@@ -22,6 +22,8 @@ const gameCenterHtml = readFile('../client/game_center.html');
 const gameHandHtml = readFile('../client/game_hand.html');
 const gameJs = readFile('../client/src/game.js');
 const gameInProgressHtml = readFile('../client/game_in_progress.html');
+const gameOverHtml = readFile('../client/game_over.html');
+const gameOverJs = readFile('../client/src/game_over.js');
 
 const deckSize = 54;
 const handSize = deckSize / 2;
@@ -116,37 +118,54 @@ function getPlayerObjects(uid) {
 
 function doGetGame(uid, req, res) {
   if (isPlayer(uid) || isSpectator(uid)) {
-    let hand = null;
-    for (let i = 0; i < game.gamePlayers.length; i++) {
-      if (uidToPlayer.get(uid) === game.gamePlayers[i].username) {
-        hand = game.gamePlayers[i].hand;
-        break;
+    let currentGameState = game.getGameState();
+    if (currentGameState === gameState.IN_PROGRESS) {
+      let hand = null;
+      for (let i = 0; i < game.gamePlayers.length; i++) {
+        if (uidToPlayer.get(uid) === game.gamePlayers[i].username) {
+          hand = game.gamePlayers[i].hand;
+          break;
+        }
       }
-    }
-    res.writeHead(200);
-    res.end(hb.compile(
-      indexHtml.toString(),
-      {noEscape: true},
-    )({
-      script: gameJs,
-      body: hb.compile(
-        gameHtml.toString(),
+      res.writeHead(200);
+      res.end(hb.compile(
+        indexHtml.toString(),
         {noEscape: true},
       )({
-        title: getGamePageTitle(uid),
-        gamePlayers: hb.compile(
-          gamePlayersHtml.toString(),
+        script: gameJs,
+        body: hb.compile(
+          gameHtml.toString(),
           {noEscape: true},
         )({
-          players: getPlayerObjects(uid),
+          title: getGamePageTitle(uid),
+          gamePlayers: hb.compile(
+            gamePlayersHtml.toString(),
+            {noEscape: true},
+          )({
+            players: getPlayerObjects(uid),
+          }),
+          spectators: spectators.length,
+          gameCenter: hb.compile(gameCenterHtml.toString())(),
+          gameHand: hb.compile(gameHandHtml.toString())({
+            hand: hand,
+          }),
         }),
-        spectators: spectators.length,
-        gameCenter: hb.compile(gameCenterHtml.toString())(),
-        gameHand: hb.compile(gameHandHtml.toString())({
-          hand: hand,
+      }));
+    } else {
+      let playersByTeam = game.getPlayersByTeam();
+      let winningTeamList = currentGameState === gameState.TEAM_ONE_WON ? playersByTeam.teamOne : playersByTeam.teamTwo;
+      res.writeHead(200);
+      res.end(hb.compile(
+        indexHtml.toString(),
+        {noEscape: true},
+      )({
+        script: gameOverJs,
+        body: hb.compile(gameOverHtml.toString())({
+          message: getUsernameWinString(winningTeamList),
+          playerOne: isPlayerOne(uid),
         }),
-      }),
-    }));
+      }));
+    }
   } else {
     res.writeHead(200);
     res.end(hb.compile(
@@ -902,18 +921,14 @@ function createGame() {
 }
 
 function sendErrorAndDeleteGame(errMessage) {
-  io.emit('game error', {err: errMessage});
   game = null;
   players = [];
   uidToPlayer = new Map();
   spectators = [];
+  io.emit('game error', {err: errMessage});
 }
 
-function sendGameOverAndDeleteGame(message) {
-  io.emit('game over', {message: message});
-}
-
-function getUsernameString(playerList) {
+function getUsernameWinString(playerList) {
   if (playerList.length === 0) {
     return '';
   }
@@ -954,13 +969,8 @@ io.on('connection', (socket) => {
     }
     try {
       let result = game.advance(uidToPlayer.get(uid), playedHand);
-      let playersByTeam = game.getPlayersByTeam();
-      if (result.state === gameState.TEAM_ONE_WON) {
-        sendGameOverAndDeleteGame(getUsernameString(playersByTeam.teamOne));
-        return;
-      }
-      if (result.state === gameState.TEAM_TWO_WON) {
-        sendGameOverAndDeleteGame(getUsernameString(playersByTeam.teamTwo));
+      if (result.state !== gameState.IN_PROGRESS) {
+        io.send('game over');
         return;
       }
       socket.emit('play update', {
@@ -999,6 +1009,21 @@ io.on('connection', (socket) => {
           players: getPlayerObjects(uid),
         }),
       });
+    }
+  });
+
+  socket.on('message', (msg) => {
+    if (msg === 'play again') {
+      // TODO: Reset game but with tributes.
+      io.send();
+      return;
+    }
+    if (msg === 'back to lobby') {
+      game = null;
+      players = [];
+      uidToPlayer = new Map();
+      spectators = [];
+      io.send('back to lobby');
     }
   });
 });

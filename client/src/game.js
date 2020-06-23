@@ -214,7 +214,7 @@ function getSelectedCards() {
   return hand;
 }
 
-function getUid() {
+function getUidOrReload() {
   let hand = getSelectedCards();
   let cookies = document.cookie.split(';');
   for (c of cookies) {
@@ -223,17 +223,12 @@ function getUid() {
       return parseInt(keyAndValue[1]);
     }
   }
-  return null;
+  location.reload();
 }
 
 function updateButtons() {
   let hand = getSelectedCards();
-  let uid = getUid();
-  if (uid == null) {
-    location.reload();
-  } else {
-    socket.emit('check', uid, hand.length === 0 ? null : hand);
-  }
+  socket.emit('check', getUidOrReload(), hand.length === 0 ? null : hand);
 }
 
 setCardImages();
@@ -247,22 +242,11 @@ window.addEventListener('resize', function() {
 });
 
 $('#play').click(function() {
-  let hand = getSelectedCards();
-  let uid = getUid();
-  if (uid == null) {
-    location.reload();
-  } else {
-    socket.emit('play', uid, hand);
-  }
+  socket.emit('play', getUidOrReload(), getSelectedCards());
 });
 
 $('#pass').click(function() {
-  let uid = getUid();
-  if (uid == null) {
-    location.reload();
-  } else {
-    socket.emit('play', uid, null);
-  }
+  socket.emit('play', getUidOrReload(), null);
 });
 
 socket.on('num spectators', (data) => {
@@ -305,12 +289,7 @@ socket.on('game error', (data) => {
 
 socket.on('play update', (data) => {
   if (data.getMetadataUpdate) {
-    let uid = getUid();
-    if (uid == null) {
-      location.reload();
-    } else {
-      socket.emit('get metadata update', uid);
-    }
+    socket.emit('get metadata update', getUidOrReload());
   }
   $('#game-center').html(data.gameCenter);
   // Hand HTML is only present for the person who just played.
@@ -333,12 +312,8 @@ socket.on('metadata update', (data) => {
   }
 });
 
-socket.on('game over', (data) => {
-  $('body').html(
-    '<div class="center" style="text-align:center">' +
-    '<h1>Game Over</h1>' +
-    '<br>' +
-    data.message +
-    '</div>'
-  );
+socket.on('message', (msg) => {
+  if (msg === 'game over') {
+    location.reload();
+  }
 });

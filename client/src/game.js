@@ -241,6 +241,10 @@ window.addEventListener('resize', function() {
   resizeCenter();
 });
 
+$('#send-card').click(function() {
+  socket.emit('send card', getUidOrReload(), getSelectedCards());
+});
+
 $('#play').click(function() {
   socket.emit('play', getUidOrReload(), getSelectedCards());
 });
@@ -263,6 +267,8 @@ socket.on('check ok', (data) => {
   }
   $('#pass').prop('disabled', false);
   $('#pass').removeProp('title');
+  $('#send-card').prop('disabled', false);
+  $('#send-card').removeProp('title');
 });
 
 socket.on('check error', (data) => {
@@ -275,6 +281,8 @@ socket.on('check error', (data) => {
     $('#pass').prop('disabled', false);
     $('#pass').removeProp('title');
   }
+  $('#send-card').prop('disabled', true);
+  $('#send-card').prop('title', data.err);
 });
 
 socket.on('game error', (data) => {
@@ -310,6 +318,17 @@ socket.on('metadata update', (data) => {
     $('#game-players').html(data.gamePlayers);
     resizeCenter();
   }
+  $('#game-hand').html(data.gameHand);
+  setCardImages();
+  overlapCardsAndCreateClickableDivs();
+  if (data.hasOwnProperty('tributeModalHtml')) {
+    $('body').append(data.tributeModalHtml);
+    $('#tributes').modal('show');
+  }
+});
+
+$('#tributes').on('hidden.bs.modal', function() {
+  location.reload();
 });
 
 socket.on('message', (msg) => {

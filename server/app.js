@@ -21,6 +21,7 @@ const gamePlayersHtml = readFile('../client/game_players.html');
 const gameCenterHtml = readFile('../client/game_center.html');
 const gameHandHtml = readFile('../client/game_hand.html');
 const gameJs = readFile('../client/src/game.js');
+const tributeModal = readFile('../client/tribute_modal.html');
 const gameInProgressHtml = readFile('../client/game_in_progress.html');
 const gameOverHtml = readFile('../client/game_over.html');
 const gameOverJs = readFile('../client/src/game_over.js');
@@ -98,8 +99,20 @@ function doGetHome(uid, req, res) {
 }
 
 function getGamePageTitle(uid) {
+  let username = uidToPlayer.get(uid);
+  if (tributes) {
+    for (t of tributes) {
+      if (t.giver === username) {
+        return 'Send a tribute to ' + t.receiver;
+      }
+      if (t.receiver === username) {
+        return 'Send an anti-tribute to ' + t.giver;
+      }
+    }
+    return 'Waiting for tributes';
+  }
   let currentPlayerUsername = game.gamePlayers[game.currentPlayer].username;
-  return currentPlayerUsername === uidToPlayer.get(uid) ? 'Your turn!' : currentPlayerUsername + '\'s turn';
+  return currentPlayerUsername === username ? 'Your turn!' : currentPlayerUsername + '\'s turn';
 }
 
 function getPlayerObjects(uid) {
@@ -150,6 +163,7 @@ function doGetGame(uid, req, res) {
           gameHand: hb.compile(gameHandHtml.toString())({
             hand: hand,
           }),
+          tributing: tributes !== null,
         }),
       }));
     } else {
@@ -457,7 +471,7 @@ function playToString(playedHand) {
                   unicode +
                   '</span>';
   }
-  return '<br>' + cardString;
+  return cardString;
 }
 
 function createCard(v, s = undefined, isStartingThreeOfClubs = false) {
@@ -888,6 +902,45 @@ function createGame() {
       }
       return tributes;
     },  // Should only be called once the game is over.
+    validateTribute: function(username, selectedCards) {
+      let player = null;
+      for (p of this.gamePlayers) {
+        if (p.username === username) {
+          player = p;
+          break;
+        }
+      }
+      if (player == null) {
+        throw {message: 'Could not find player'};
+      }
+      for (t of tributes) {
+        if (t.giver === username) {
+          if (selectedCards.length !== 1) {
+            throw {message: 'Must select exactly one card'};
+          }
+          if (t.hasOwnProperty('giverSent')) {
+            throw {message: 'Already sent a card'};
+          }
+          let sortedHand = _.sortBy(player.hand, [function(o) {
+            return o.value;
+          }]);
+          if (selectedCards[0].value != sortedHand[sortedHand.length - 1].value) {
+            throw {message: 'Must select highest card in hand'};
+          }
+          return;
+        }
+        if (t.receiver === username) {
+          if (selectedCards.length !== 1) {
+            throw {message: 'Must select exactly one card'};
+          }
+          if (t.hasOwnProperty('receiverSent')) {
+            throw {message: 'Already sent a card'};
+          }
+          return;
+        }
+      }
+      throw {message: 'Waiting for tributes'};
+    }
     validate: function(username, playedHand) {
       if (username !== this.gamePlayers[this.currentPlayer].username) {
         throw {message: 'Not your turn'};
@@ -898,6 +951,47 @@ function createGame() {
         this.currentPlayer === this.lastPlayer ? {play: play.PASS} : this.previousPlay
       );
       return currentPlay;
+    },
+    sendTribute: function(username, selectedCards) {
+      this.validateTribute(username, selectedCards);
+      let newHand = null;
+      for (p of this.gamePlayers) {
+        if (p.username === username) {
+          p.playHand(selectedCards);
+          newHand = p.hand;
+          break;
+        }
+      }
+      let receiver = null;
+      for (t of tributes) {
+        if (t.giver === username) {
+          receiver = t.receiver;
+          t.giverSent = selectedCards[0];
+          break;
+        }
+        if (t.receiver === username) {
+          receiver = t.giver;
+          t.receiverSent = selectedCards[0];
+          break;
+        }
+      }
+      if (receiver == null) {
+        throw {message: 'Could not find recipient'};
+      }
+      for (p of this.gamePlayers) {
+        if (p.username === receiver) {
+          p.hand.push(selectedCards[0]);
+          break;
+        }
+      }
+      for (let [k, v] of uidToPlayer) {
+        if (v === receiver) {
+          return {
+            receiverUid: k,
+            newHand: newHand,
+          };
+        }
+      }
     },
     advance: function(username, playedHand) {
       let currentPlay = this.validate(username, playedHand);
@@ -926,7 +1020,7 @@ function createGame() {
       if (currentPlay.play === play.PASS) {
         actionString = 'PASS';
       } else {
-        actionString = playToString(playedHand);
+        actionString = '<br>' + playToString(playedHand);
       }
       this.lastActions[this.currentPlayer] = actionString;
       let newCurrentPlayer = this.currentPlayer;
@@ -981,11 +1075,53 @@ io.on('connection', (socket) => {
     if (!isPlayer(uid)) {
       socket.emit('check error', {err: 'Invalid user ID'});
     }
+    let username = uidToPlayer.get(uid);
+    if (tributes) {
+      try {
+        game.validateTribute(username, playedHand);
+        socket.send('check ok');
+      } catch (err) {
+        socket.emit('check error', {err: err.message});
+      }
+    } else {
+      try {
+        let currentPlay = game.validate(username, playedHand);
+        socket.emit('check ok', {pass: currentPlay.play === play.PASS});
+      } catch (err) {
+        socket.emit('check error', {err: err.message});
+      }
+    }
+  });
+
+  socket.on('send card', (uid, selectedCards) => {
+    if (!isPlayer(uid)) {
+      sendErrorAndDeleteGame('User with invalid ID attempted to send card');
+      return;
+    }
     try {
-      let currentPlay = game.validate(uidToPlayer.get(uid), playedHand);
-      socket.emit('check ok', {pass: currentPlay.play === play.PASS});
+      let result = game.sendTribute(uidToPlayer.get(uid), selectedCards);
+      socket.emit('play update', {
+        getMetadataUpdate: false,
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: [],
+        }),
+        gameHand: hb.compile(gameHandHtml.toString())({
+          hand: result.newHand,
+        }),
+      });
+      socket.emit('metadata update', {
+        title: getGamePageTitle(uid),
+        // Don't need to update gamePlayers info.
+      });
+      socket.broadcast.emit('play update', {
+        getMetadataUpdate: true,
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: [],
+        }),
+        // Don't need to update gameHand for other players.
+      });
     } catch (err) {
-      socket.emit('check error', {err: err.message});
+      sendErrorAndDeleteGame(err.message);
     }
   });
 
@@ -1006,7 +1142,7 @@ io.on('connection', (socket) => {
           lastPlay: playedHand,
         }),
         gameHand: hb.compile(gameHandHtml.toString())({
-          hand: result,
+          hand: result.newHand,
         }),
       });
       socket.emit('metadata update', {
@@ -1027,7 +1163,26 @@ io.on('connection', (socket) => {
 
   socket.on('get metadata update', (uid) => {
     if (isPlayer(uid)) {
-      socket.emit('metadata update', {
+      let hand = [];
+      for (p of game.gamePlayers) {
+        if (p.username === uidToPlayer[uid]) {
+          hand = p.hand;
+        }
+      }
+      let tributesDone = true;
+      let tributeStrings = [];
+      if (tributes) {
+        for (t of tributes) {
+          if (!t.hasOwnProperty('giverSent') || !t.hasOwnProperty('receiverSent')) {
+            tributesDone = false;
+            break;
+          }
+          tributeStrings.push(t.giver + ' sent ' + t.receiver + ' ' + playToString([t.giverSent]));
+          tributeStrings.push(t.receiver + ' returned ' + t.giver + ' ' + playToString([t.receiverSent]));
+        }
+        tributes = null;
+      }
+      let metadata = {
         title: getGamePageTitle(uid),
         gamePlayers: hb.compile(
           gamePlayersHtml.toString(),
@@ -1035,7 +1190,20 @@ io.on('connection', (socket) => {
         )({
           players: getPlayerObjects(uid),
         }),
-      });
+        gameHand: hb.compile(gameHandHtml.toString())({
+          hand: hand,
+        }),
+      };
+      if (tributesDone) {
+        metadata.tributeModalHtml = hb.compile(
+          tributeModalHtml.toString(),
+          {noEscape: true},
+        )({
+          tributes: tributeStrings,
+        });
+        metadata.buttonHtml = playPassButtonsHtml.toString();
+      }
+      socket.emit('metadata update', metadata);
     }
   });
 
@@ -1043,7 +1211,6 @@ io.on('connection', (socket) => {
     if (msg === 'play again') {
       try {
         tributes = game.getTributes();
-        // TODO: Record tributes somewhere.
         game = createGame();
         io.send('reload');
       } catch (err) {

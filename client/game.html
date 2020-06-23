@@ -17,10 +17,18 @@
     {{gameHand}}
   </div>
   <div style="height:3rem"></div>
-  <div style="text-align:center">
-    <button id="play" type="button" class="btn btn-primary btn-lg">Play</button>
-    &nbsp;&nbsp;
-    <button id="pass" type="button" class="btn btn-secondary btn-lg">Pass</button>
+  <div id="game-buttons">
+    {{#if tributing}}
+    <div style="text-align:center">
+      <button id="send-card" type="button" class="btn btn-primary btn-lg">Send card</button>
+    </div>
+    {{else}}
+    <div style="text-align:center">
+      <button id="play" type="button" class="btn btn-primary btn-lg">Play</button>
+      &nbsp;&nbsp;
+      <button id="pass" type="button" class="btn btn-secondary btn-lg">Pass</button>
+    </div>
+    {{/if}}
   </div>
   <div style="height:3rem"></div>
 </div>

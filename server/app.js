@@ -29,6 +29,7 @@ const deckSize = 54;
 const handSize = deckSize / 2;
 
 var game = null;
+var tributes = null;
 var players = [];     // Player names.
 var uidToPlayer = new Map();
 var spectators = [];  // Spectator UIDs.
@@ -941,11 +942,16 @@ function createGame() {
   };
 }
 
-function sendErrorAndDeleteGame(errMessage) {
+function resetAllState() {
   game = null;
+  tributes = null;
   players = [];
   uidToPlayer = new Map();
   spectators = [];
+}
+
+function sendErrorAndDeleteGame(errMessage) {
+  resetAllState();
   io.emit('game error', {err: errMessage});
 }
 
@@ -1036,7 +1042,7 @@ io.on('connection', (socket) => {
   socket.on('message', (msg) => {
     if (msg === 'play again') {
       try {
-        let tributes = game.getTributes();
+        tributes = game.getTributes();
         // TODO: Record tributes somewhere.
         game = createGame();
         io.send('reload');
@@ -1046,10 +1052,7 @@ io.on('connection', (socket) => {
       return;
     }
     if (msg === 'back to lobby') {
-      game = null;
-      players = [];
-      uidToPlayer = new Map();
-      spectators = [];
+      resetAllState();
       io.send('reload');
     }
   });

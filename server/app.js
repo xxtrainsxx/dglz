@@ -102,10 +102,10 @@ function getGamePageTitle(uid) {
   let username = uidToPlayer.get(uid);
   if (tributes) {
     for (t of tributes) {
-      if (t.giver === username) {
+      if (t.giver === username && !t.hasOwnProperty('giverSent')) {
         return 'Send a tribute to ' + t.receiver;
       }
-      if (t.receiver === username) {
+      if (t.receiver === username && !t.hasOwnProperty('receiverSent')) {
         return 'Send an anti-tribute to ' + t.giver;
       }
     }
@@ -895,7 +895,7 @@ function createGame() {
         if (p.hand.length > 0) {
           tributes.push({
             giver: p.username,
-            receiver: this.receivers[receiversIndex],
+            receiver: receivers[receiversIndex],
           });
           receiversIndex++;
         }
@@ -903,6 +903,9 @@ function createGame() {
       return tributes;
     },  // Should only be called once the game is over.
     validateTribute: function(username, selectedCards) {
+      if (!selectedCards) {
+        throw {message: 'Select a card'};
+      }
       let player = null;
       for (p of this.gamePlayers) {
         if (p.username === username) {
@@ -981,6 +984,9 @@ function createGame() {
       for (p of this.gamePlayers) {
         if (p.username === receiver) {
           p.hand.push(selectedCards[0]);
+          p.hand = _.sortBy(p.hand, [function(o) {
+            return o.value;
+          }]);
           break;
         }
       }
@@ -996,10 +1002,6 @@ function createGame() {
     advance: function(username, playedHand) {
       let currentPlay = this.validate(username, playedHand);
       this.gamePlayers[this.currentPlayer].playHand(playedHand);
-      let currentGameState = this.getGameState();
-      if (currentGameState != gameState.IN_PROGRESS) {
-        return {state: currentGameState};
-      }
       let newHand = this.gamePlayers[this.currentPlayer].hand;
       if (newHand.length === 0) {
         if (this.currentPlayer % 2 === 0) {
@@ -1007,6 +1009,10 @@ function createGame() {
         } else {
           this.teamTwoOut.push(this.gamePlayers[this.currentPlayer].username);
         }
+      }
+      let currentGameState = this.getGameState();
+      if (currentGameState != gameState.IN_PROGRESS) {
+        return {state: currentGameState};
       }
       if (this.currentPlayer === this.lastPlayer) {
         this.roundStarter = this.currentPlayer;
@@ -1101,7 +1107,7 @@ io.on('connection', (socket) => {
     try {
       let result = game.sendTribute(uidToPlayer.get(uid), selectedCards);
       socket.emit('play update', {
-        getMetadataUpdate: false,
+        getMetadataUpdate: true,
         gameCenter: hb.compile(gameCenterHtml.toString())({
           lastPlay: [],
         }),
@@ -1122,6 +1128,30 @@ io.on('connection', (socket) => {
       });
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
+    }
+    let tributesDone = false;
+    let tributeStrings = [];
+    if (tributes) {
+      tributesDone = true;
+      for (t of tributes) {
+        if (!t.hasOwnProperty('giverSent') || !t.hasOwnProperty('receiverSent')) {
+          tributesDone = false;
+          break;
+        }
+        tributeStrings.push(t.giver + ' sent ' + t.receiver + ' ' + playToString([t.giverSent]));
+        tributeStrings.push(t.receiver + ' returned ' + t.giver + ' ' + playToString([t.receiverSent]));
+      }
+      if (tributesDone) {
+        tributes = null;
+        io.emit('tribute summary', {
+          tributeModalHtml: hb.compile(
+            tributeModal.toString(),
+            {noEscape: true},
+          )({
+            tributes: tributeStrings,
+          }),
+        });
+      }
     }
   });
 
@@ -1170,21 +1200,7 @@ io.on('connection', (socket) => {
           break;
         }
       }
-      let tributesDone = false;
-      let tributeStrings = [];
-      if (tributes) {
-        tributesDone = true;
-        for (t of tributes) {
-          if (!t.hasOwnProperty('giverSent') || !t.hasOwnProperty('receiverSent')) {
-            tributesDone = false;
-            break;
-          }
-          tributeStrings.push(t.giver + ' sent ' + t.receiver + ' ' + playToString([t.giverSent]));
-          tributeStrings.push(t.receiver + ' returned ' + t.giver + ' ' + playToString([t.receiverSent]));
-        }
-        tributes = null;
-      }
-      let metadata = {
+      socket.emit('metadata update', {
         title: getGamePageTitle(uid),
         gamePlayers: hb.compile(
           gamePlayersHtml.toString(),
@@ -1195,16 +1211,7 @@ io.on('connection', (socket) => {
         gameHand: hb.compile(gameHandHtml.toString())({
           hand: hand,
         }),
-      };
-      if (tributesDone) {
-        metadata.tributeModalHtml = hb.compile(
-          tributeModal.toString(),
-          {noEscape: true},
-        )({
-          tributes: tributeStrings,
-        });
-      }
-      socket.emit('metadata update', metadata);
+      });
     }
   });
 

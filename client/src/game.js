@@ -321,14 +321,14 @@ socket.on('metadata update', (data) => {
   $('#game-hand').html(data.gameHand);
   setCardImages();
   overlapCardsAndCreateClickableDivs();
-  if (data.hasOwnProperty('tributeModalHtml')) {
-    $('body').append(data.tributeModalHtml);
-    $('#tributes').modal('show');
-  }
 });
 
-$('#tributes').on('hidden.bs.modal', function() {
-  location.reload();
+socket.on('tribute summary', (data) => {
+  $('body').append(data.tributeModalHtml);
+  $('#tributes').modal('show');
+  $('#tributes').on('hide.bs.modal', function() {
+    location.reload();
+  });
 });
 
 socket.on('message', (msg) => {

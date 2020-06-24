@@ -940,7 +940,7 @@ function createGame() {
         }
       }
       throw {message: 'Waiting for tributes'};
-    }
+    },
     validate: function(username, playedHand) {
       if (username !== this.gamePlayers[this.currentPlayer].username) {
         throw {message: 'Not your turn'};
@@ -1165,13 +1165,15 @@ io.on('connection', (socket) => {
     if (isPlayer(uid)) {
       let hand = [];
       for (p of game.gamePlayers) {
-        if (p.username === uidToPlayer[uid]) {
+        if (p.username === uidToPlayer.get(uid)) {
           hand = p.hand;
+          break;
         }
       }
-      let tributesDone = true;
+      let tributesDone = false;
       let tributeStrings = [];
       if (tributes) {
+        tributesDone = true;
         for (t of tributes) {
           if (!t.hasOwnProperty('giverSent') || !t.hasOwnProperty('receiverSent')) {
             tributesDone = false;
@@ -1196,12 +1198,11 @@ io.on('connection', (socket) => {
       };
       if (tributesDone) {
         metadata.tributeModalHtml = hb.compile(
-          tributeModalHtml.toString(),
+          tributeModal.toString(),
           {noEscape: true},
         )({
           tributes: tributeStrings,
         });
-        metadata.buttonHtml = playPassButtonsHtml.toString();
       }
       socket.emit('metadata update', metadata);
     }
@@ -1218,7 +1219,7 @@ io.on('connection', (socket) => {
       }
       return;
     }
-    if (msg === 'back to lobby') {
+    if (msg === 'exit') {
       resetAllState();
       io.send('reload');
     }

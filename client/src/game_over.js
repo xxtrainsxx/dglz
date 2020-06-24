@@ -2,8 +2,8 @@ $('#play-again').click(function() {
   socket.send('play again');
 });
 
-$('#back-to-lobby').click(function() {
-  socket.send('back to lobby');
+$('#exit').click(function() {
+  socket.send('exit');
 });
 
 socket.on('message', (msg) => {

@@ -1079,7 +1079,7 @@ io.on('connection', (socket) => {
     if (tributes) {
       try {
         game.validateTribute(username, playedHand);
-        socket.send('check ok');
+        socket.emit('check ok', {});
       } catch (err) {
         socket.emit('check error', {err: err.message});
       }

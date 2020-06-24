@@ -263,12 +263,12 @@ socket.on('check ok', (data) => {
     $('#play').prop('title', 'Select cards to play');
   } else {
     $('#play').prop('disabled', false);
-    $('#play').removeProp('title');
+    $('#play').removeAttr('title');
   }
   $('#pass').prop('disabled', false);
-  $('#pass').removeProp('title');
+  $('#pass').removeAttr('title');
   $('#send-card').prop('disabled', false);
-  $('#send-card').removeProp('title');
+  $('#send-card').removeAttr('title');
 });
 
 socket.on('check error', (data) => {
@@ -279,7 +279,7 @@ socket.on('check error', (data) => {
     $('#pass').prop('title', data.err);
   } else {
     $('#pass').prop('disabled', false);
-    $('#pass').removeProp('title');
+    $('#pass').removeAttr('title');
   }
   $('#send-card').prop('disabled', true);
   $('#send-card').prop('title', data.err);

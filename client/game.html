@@ -12,12 +12,12 @@
 <div id="game-center" style="text-align:center">
   {{gameCenter}}
 </div>
+{{#if isPlayer}}
 <div style="position:absolute;bottom:0;text-align:center;width:100%" id="game-hand-wrapper">
   <div id="game-hand" style="display:inline-block">
     {{gameHand}}
   </div>
   <div style="height:3rem"></div>
-  <div id="game-buttons">
     {{#if tributing}}
     <div style="text-align:center">
       <button id="send-card" type="button" class="btn btn-primary btn-lg">Send card</button>
@@ -29,6 +29,6 @@
       <button id="pass" type="button" class="btn btn-secondary btn-lg">Pass</button>
     </div>
     {{/if}}
-  </div>
   <div style="height:3rem"></div>
 </div>
+{{/if}}

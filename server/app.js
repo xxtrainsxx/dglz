@@ -165,6 +165,7 @@ function doGetGame(uid, req, res) {
           }),
           spectators: spectators.length,
           gameCenter: hb.compile(gameCenterHtml.toString())(),
+          isPlayer: isPlayer(uid),
           gameHand: hb.compile(gameHandHtml.toString())({
             hand: hand,
           }),
@@ -1199,7 +1200,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('get metadata update', (uid) => {
-    if (isPlayer(uid)) {
+    if (isPlayer(uid) || isSpectator(uid)) {
       let hand = [];
       for (p of game.gamePlayers) {
         if (p.username === uidToPlayer.get(uid)) {

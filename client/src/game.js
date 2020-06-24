@@ -192,7 +192,7 @@ function overlapCardsAndCreateClickableDivs() {
 
 function resizeCenter() {
   let gameCenterTop = $('#game-center').offset().top;
-  let gameHandTop = $('#game-hand-wrapper').offset().top;
+  let gameHandTop = $('#game-hand-wrapper').length > 0 ? $('#game-hand-wrapper').offset().top : Number.MAX_SAFE_INTEGER;
   let numPxInRem = parseFloat(getComputedStyle(document.documentElement).fontSize);
   $('#game-center').css('height', Math.min(200, gameHandTop - gameCenterTop - 2 * numPxInRem) + 'px');
 }
@@ -301,7 +301,7 @@ socket.on('play update', (data) => {
   }
   $('#game-center').html(data.gameCenter);
   // Hand HTML is only present for the person who just played.
-  if (data.hasOwnProperty('gameHand')) {
+  if (data.hasOwnProperty('gameHand') && $('#game-hand').length > 0) {
     $('#game-hand').html(data.gameHand);
     setCardImages();
     overlapCardsAndCreateClickableDivs();
@@ -318,7 +318,9 @@ socket.on('metadata update', (data) => {
     $('#game-players').html(data.gamePlayers);
     resizeCenter();
   }
-  $('#game-hand').html(data.gameHand);
+  if ($('#game-hand').length > 0) {
+    $('#game-hand').html(data.gameHand);
+  }
   setCardImages();
   overlapCardsAndCreateClickableDivs();
 });

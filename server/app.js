@@ -29,6 +29,8 @@ const gameOverJs = readFile('../client/src/game_over.js');
 const deckSize = 54;
 const handSize = deckSize / 2;
 
+const port = process.env.PORT || 8000;
+
 var game = null;
 var tributes = null;
 var players = [];     // Player names.
@@ -37,7 +39,7 @@ var spectators = [];  // Spectator UIDs.
 
 hb.registerPartial('joinModal', joinModal.toString());
 
-app.listen(8000);
+app.listen(port);
 
 function handler(req, res) {
   var cookies = cookie.parse(req.headers.cookie || '');
@@ -77,6 +79,7 @@ function doGetHome(uid, req, res) {
       indexHtml.toString(),
       {noEscape: true},
     )({
+      port: port,
       script: lobbyJs,
       body: hb.compile(lobbyHtml.toString())({
         playerOne: isPlayerOne(uid),
@@ -92,6 +95,7 @@ function doGetHome(uid, req, res) {
       indexHtml.toString(),
       {noEscape: true},
     )({
+      port: port,
       script: '',
       body: hb.compile(homeHtml.toString())(),
     }));
@@ -146,6 +150,7 @@ function doGetGame(uid, req, res) {
         indexHtml.toString(),
         {noEscape: true},
       )({
+        port: port,
         script: gameJs,
         body: hb.compile(
           gameHtml.toString(),
@@ -174,6 +179,7 @@ function doGetGame(uid, req, res) {
         indexHtml.toString(),
         {noEscape: true},
       )({
+        port: port,
         script: gameOverJs,
         body: hb.compile(gameOverHtml.toString())({
           message: getUsernameWinString(winningTeamList),
@@ -187,6 +193,7 @@ function doGetGame(uid, req, res) {
       indexHtml.toString(),
       {noEscape: true},
     )({
+      port: port,
       script: '',
       body: gameInProgressHtml.toString(),
     }));

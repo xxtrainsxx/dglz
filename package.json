@@ -1,0 +1,27 @@
+{
+  "name": "dglz",
+  "version": "1.0.0",
+  "description": "大怪路子 web app",
+  "main": "index.js",
+  "dependencies": {
+    "cookie": "^0.4.1",
+    "handlebars": "^4.7.6",
+    "socket.io": "^2.3.0",
+    "lodash": "^4.17.15"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xxtrainsxx/dglz.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/xxtrainsxx/dglz/issues"
+  },
+  "homepage": "https://github.com/xxtrainsxx/dglz#readme"
+}

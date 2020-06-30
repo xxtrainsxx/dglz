@@ -31,6 +31,7 @@ const handSize = deckSize / 2;
 
 const port = process.env.PORT || 8000;
 
+var numDecks = 0;
 var game = null;
 var tributes = null;
 var players = [];     // Player names.
@@ -79,7 +80,7 @@ function doGetHome(uid, req, res) {
       indexHtml.toString(),
       {noEscape: true},
     )({
-      port: port,
+      numDecks: numDecks,
       script: lobbyJs,
       body: hb.compile(lobbyHtml.toString())({
         playerOne: isPlayerOne(uid),
@@ -95,7 +96,7 @@ function doGetHome(uid, req, res) {
       indexHtml.toString(),
       {noEscape: true},
     )({
-      port: port,
+      numDecks: numDecks,
       script: '',
       body: hb.compile(homeHtml.toString())(),
     }));
@@ -122,11 +123,10 @@ function getGamePageTitle(uid) {
 function getPlayerObjects(uid) {
   let playerObjs = [];
   for (let i = 0; i < game.gamePlayers.length; i++) {
-    if (uidToPlayer.get(uid) === game.gamePlayers[i].username) {
-      continue;
-    }
+    let isCurrentPlayer = uidToPlayer.get(uid) === game.gamePlayers[i].username;
+    let youString = isCurrentPlayer ? ' (you)' : '';
     playerObjs.push({
-      username: game.gamePlayers[i].username,
+      username: game.gamePlayers[i].username + youString,
       handSize: game.gamePlayers[i].hand.length,
       lastPlayed: game.lastActions[i],
     });
@@ -150,7 +150,7 @@ function doGetGame(uid, req, res) {
         indexHtml.toString(),
         {noEscape: true},
       )({
-        port: port,
+        numDecks: numDecks,
         script: gameJs,
         body: hb.compile(
           gameHtml.toString(),
@@ -180,7 +180,7 @@ function doGetGame(uid, req, res) {
         indexHtml.toString(),
         {noEscape: true},
       )({
-        port: port,
+        numDecks: numDecks,
         script: gameOverJs,
         body: hb.compile(gameOverHtml.toString())({
           message: getUsernameWinString(winningTeamList),
@@ -194,7 +194,7 @@ function doGetGame(uid, req, res) {
       indexHtml.toString(),
       {noEscape: true},
     )({
-      port: port,
+      numDecks: numDecks,
       script: '',
       body: gameInProgressHtml.toString(),
     }));
@@ -482,32 +482,27 @@ function playToString(playedHand) {
   return cardString;
 }
 
-function createCard(v, s = undefined, isStartingThreeOfClubs = false) {
+function createCard(i, v, s = undefined) {
   return {
+    deckIndex: i,
     value: v,
     suit: s,
-    isStartingThreeOfClubs: isStartingThreeOfClubs,
   };
 }
 
-function createAndShuffleDeck(numDecks) {
+function createAndShuffleDeck(n) {
+  numDecks = n;
   let deck = [];
-  for (let i = 0; i < numDecks; i++) {
-    // Add threes.
-    let isStartingThreeOfClubs = i == 0;
-    deck.push(createCard(value.THREE, suit.CLUBS, isStartingThreeOfClubs));
-    for (s of [suit.DIAMONDS, suit.HEARTS, suit.SPADES]) {
-      deck.push(createCard(value.THREE, s));
-    }
-    // Add fours through twos.
-    for (v of [value.FOUR, value.FIVE, value.SIX, value.SEVEN, value.EIGHT, value.NINE, value.TEN, value.JACK, value.QUEEN, value.KING, value.ACE, value.TWO]) {
+  for (let i = 0; i < n; i++) {
+    // Add threes through twos.
+    for (v of [value.THREE, value.FOUR, value.FIVE, value.SIX, value.SEVEN, value.EIGHT, value.NINE, value.TEN, value.JACK, value.QUEEN, value.KING, value.ACE, value.TWO]) {
       for (s of [suit.CLUBS, suit.DIAMONDS, suit.HEARTS, suit.SPADES]) {
-        deck.push(createCard(v, s))
+        deck.push(createCard(i, v, s))
       }
     }
     // Add jokers.
-    deck.push(createCard(value.BLACK_JOKER));
-    deck.push(createCard(value.RED_JOKER));
+    deck.push(createCard(i, value.BLACK_JOKER));
+    deck.push(createCard(i, value.RED_JOKER));
   }
   return _.shuffle(deck);
 }
@@ -831,7 +826,7 @@ function createGame() {
       return a.value - b.value;
     });
     if (_.findIndex(hand, function(o) {
-      return _.isEqual(o, createCard(value.THREE, suit.CLUBS, true));
+      return _.isEqual(o, createCard(0, value.THREE, suit.CLUBS));
     }) >= 0) {
       if (firstPlayer >= 0) {
         throw {message: 'Multiple first players found'};

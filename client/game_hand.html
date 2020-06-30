@@ -2,7 +2,7 @@
   <div style="width:0;height:200"></div>
   {{#each hand}}
   <div class="game-card" style="flex-grow:1">
-    <img class="game-card-img" id="{{this.value}}-{{this.suit}}" style="width:144px;height:200px;border-style:solid;border-color:#696969;border-width:1px">
+    <img class="game-card-img {{this.value}}-{{this.suit}}" style="width:144px;height:200px;border-style:solid;border-color:#696969;border-width:1px">
   </div>
   {{/each}}
 </div>

@@ -1123,9 +1123,7 @@ io.on('connection', (socket) => {
           hand: result.newHand,
         }),
       });
-      socket.broadcast.emit('update', {
-        requestUpdate: true,
-      });
+      socket.broadcast.emit('update', {requestUpdate: true});
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
     }
@@ -1179,9 +1177,7 @@ io.on('connection', (socket) => {
           hand: result.newHand,
         }),
       });
-      socket.broadcast.emit('update', {
-        requestUpdate: true,
-      });
+      socket.broadcast.emit('update', {requestUpdate: true});
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
     }

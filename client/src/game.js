@@ -203,7 +203,7 @@ function getSelectedCards() {
   let hand = [];
   $('.game-card.card-selected').each(function() {
     let cardInfo = $(this).children('img').attr('id').split('-');
-    let deckIndex = cardInfo[2];
+    let deckIndex = parseInt(cardInfo[2]);
     let value = parseInt(cardInfo[0]);
     if (value == 14 || value == 15) {
       hand.push({

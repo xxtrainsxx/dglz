@@ -164,7 +164,9 @@ function doGetGame(uid, req, res) {
             players: getPlayerObjects(uid),
           }),
           spectators: spectators.length,
-          gameCenter: hb.compile(gameCenterHtml.toString())(),
+          gameCenter: hb.compile(gameCenterHtml.toString())({
+            lastPlay: game.previousPlayedHand,
+          }),
           isPlayer: isPlayer(uid),
           gameHand: hb.compile(gameHandHtml.toString())({
             hand: hand,
@@ -517,7 +519,7 @@ function createPlayer(username, startingHand) {
       }
       for (card of playedHand) {
         const i = _.findIndex(this.hand, function(o) {
-          return o.value === card.value && o.suit === card.suit;
+          return _.isEqual(o, card);
         });
         if (i < 0) {
           throw {message: 'Cannot play card not in hand'};
@@ -842,9 +844,9 @@ function createGame() {
   return {
     gamePlayers: gamePlayers,
     currentPlayer: firstPlayer, // Index.
-    roundStarter: firstPlayer,  // Index.
     lastPlayer: -1,             // Index.
     previousPlay: {play: play.PASS},
+    previousPlayedHand: [],
     lastActions: lastActions,   // Reset every round.
     gameState: gameState.IN_PROGRESS,
     teamOneOut: [],
@@ -1018,7 +1020,6 @@ function createGame() {
         return {state: currentGameState};
       }
       if (this.currentPlayer === this.lastPlayer) {
-        this.roundStarter = this.currentPlayer;
         for (let i = 0; i < this.lastActions.length; i++) {
           this.lastActions[i] = '';
         }
@@ -1026,12 +1027,7 @@ function createGame() {
       if (currentPlay.play !== play.PASS) {
         this.lastPlayer = this.currentPlayer;
         this.previousPlay = currentPlay;
-        io.emit('update', {
-          requestUpdate: false,
-          gameCenter: hb.compile(gameCenterHtml.toString())({
-            lastPlay: playedHand,
-          }),
-        });
+        this.previousPlayedHand = playedHand;
       }
       let actionString = '';
       if (currentPlay.play === play.PASS) {
@@ -1041,9 +1037,21 @@ function createGame() {
       }
       this.lastActions[this.currentPlayer] = actionString;
       let newCurrentPlayer = this.currentPlayer;
-      do {
+      let lastPlayerOut = false;
+      // Advance past finished players
+      while (true) {
         newCurrentPlayer = (newCurrentPlayer + 1) % this.gamePlayers.length;
-      } while (this.gamePlayers[newCurrentPlayer].hand.length === 0);
+        if (this.gamePlayers[newCurrentPlayer].hand.length > 0) {
+          break;
+        }
+        // Check for a recently finished player.
+        if (newCurrentPlayer === this.lastPlayer) {
+          lastPlayerOut = true;
+        }
+      }
+      if (lastPlayerOut) {
+        this.lastPlayer = newCurrentPlayer;
+      }
       this.currentPlayer = newCurrentPlayer;
       return {
         state: gameState.IN_PROGRESS,
@@ -1167,6 +1175,9 @@ io.on('connection', (socket) => {
       socket.emit('update', {
         requestUpdate: false,
         title: getGamePageTitle(uid),
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: game.previousPlayedHand,
+        }),
         gamePlayers: hb.compile(
           gamePlayersHtml.toString(),
           {noEscape: true},
@@ -1177,7 +1188,12 @@ io.on('connection', (socket) => {
           hand: result.newHand,
         }),
       });
-      socket.broadcast.emit('update', {requestUpdate: true});
+      socket.broadcast.emit('update', {
+        requestUpdate: true,
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: game.previousPlayedHand,
+        }),
+      });
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
     }
@@ -1195,6 +1211,9 @@ io.on('connection', (socket) => {
       socket.emit('update', {
         requestUpdate: false,
         title: getGamePageTitle(uid),
+        gameCenter: hb.compile(gameCenterHtml.toString())({
+          lastPlay: game.previousPlayedHand,
+        }),
         gamePlayers: hb.compile(
           gamePlayersHtml.toString(),
           {noEscape: true},

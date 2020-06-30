@@ -1023,8 +1023,16 @@ function createGame() {
           this.lastActions[i] = '';
         }
       }
-      this.lastPlayer = this.currentPlayer;
-      this.previousPlay = currentPlay;
+      if (currentPlay.play !== play.PASS) {
+        this.lastPlayer = this.currentPlayer;
+        this.previousPlay = currentPlay;
+        io.emit('update', {
+          requestUpdate: false,
+          gameCenter: hb.compile(gameCenterHtml.toString())({
+            lastPlay: playedHand,
+          }),
+        });
+      }
       let actionString = '';
       if (currentPlay.play === play.PASS) {
         actionString = 'PASS';
@@ -1109,25 +1117,14 @@ io.on('connection', (socket) => {
     }
     try {
       let result = game.sendTribute(uidToPlayer.get(uid), selectedCards);
-      socket.emit('play update', {
-        getMetadataUpdate: true,
-        gameCenter: hb.compile(gameCenterHtml.toString())({
-          lastPlay: [],
-        }),
+      socket.emit('update', {
+        requestUpdate: true,
         gameHand: hb.compile(gameHandHtml.toString())({
           hand: result.newHand,
         }),
       });
-      socket.emit('metadata update', {
-        title: getGamePageTitle(uid),
-        // Don't need to update gamePlayers info.
-      });
-      socket.broadcast.emit('play update', {
-        getMetadataUpdate: true,
-        gameCenter: hb.compile(gameCenterHtml.toString())({
-          lastPlay: [],
-        }),
-        // Don't need to update gameHand for other players.
+      socket.broadcast.emit('update', {
+        requestUpdate: true,
       });
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
@@ -1169,32 +1166,28 @@ io.on('connection', (socket) => {
         io.send('game over');
         return;
       }
-      socket.emit('play update', {
-        getMetadataUpdate: false,
-        gameCenter: hb.compile(gameCenterHtml.toString())({
-          lastPlay: playedHand,
+      socket.emit('update', {
+        requestUpdate: false,
+        title: getGamePageTitle(uid),
+        gamePlayers: hb.compile(
+          gamePlayersHtml.toString(),
+          {noEscape: true},
+        )({
+          players: getPlayerObjects(uid),
         }),
         gameHand: hb.compile(gameHandHtml.toString())({
           hand: result.newHand,
         }),
       });
-      socket.emit('metadata update', {
-        title: getGamePageTitle(uid),
-        // Don't need to update gamePlayers info.
-      });
-      socket.broadcast.emit('play update', {
-        getMetadataUpdate: true,
-        gameCenter: hb.compile(gameCenterHtml.toString())({
-          lastPlay: playedHand,
-        }),
-        // Don't need to update gameHand for other players.
+      socket.broadcast.emit('update', {
+        requestUpdate: true,
       });
     } catch (err) {
       sendErrorAndDeleteGame(err.message);
     }
   });
 
-  socket.on('get metadata update', (uid) => {
+  socket.on('get update', (uid) => {
     if (isPlayer(uid) || isSpectator(uid)) {
       let hand = [];
       for (p of game.gamePlayers) {
@@ -1203,7 +1196,8 @@ io.on('connection', (socket) => {
           break;
         }
       }
-      socket.emit('metadata update', {
+      socket.emit('update', {
+        requestUpdate: false,
         title: getGamePageTitle(uid),
         gamePlayers: hb.compile(
           gamePlayersHtml.toString(),

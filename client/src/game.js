@@ -302,34 +302,34 @@ socket.on('game error', (data) => {
   );
 });
 
-socket.on('play update', (data) => {
-  if (data.getMetadataUpdate) {
-    socket.emit('get metadata update', getUidOrReload());
+// Possible fields:
+// * requestUpdate
+// * title
+// * gamePlayers
+// * gameCenter
+// * gameHand
+socket.on('update', (data) => {
+  if (data.requestUpdate) {
+    socket.emit('get update', getUidOrReload());
   }
-  $('#game-center').html(data.gameCenter);
-  // Hand HTML is only present for the person who just played.
-  if (data.hasOwnProperty('gameHand') && $('#game-hand').length > 0) {
-    $('#game-hand').html(data.gameHand);
-    setCardImages();
-    overlapCardsAndCreateClickableDivs();
-  } else {
-    setCardImages();
+  if (data.hasOwnProperty('title')) {
+    $('#title').text(data.title);
   }
-  resizeCenter();
-  updateButtons();
-});
-
-socket.on('metadata update', (data) => {
-  $('#title').text(data.title);
   if (data.hasOwnProperty('gamePlayers')) {
     $('#game-players').html(data.gamePlayers);
     resizeCenter();
   }
-  if ($('#game-hand').length > 0) {
-    $('#game-hand').html(data.gameHand);
+  if (data.hasOwnProperty('gameCenter')) {
+    $('#game-center').html(data.gameCenter);
+    setCardImages();
+    resizeCenter();
   }
-  setCardImages();
-  overlapCardsAndCreateClickableDivs();
+  if (data.hasOwnProperty('gameHand') && $('#game-hand').length > 0) {
+    $('#game-hand').html(data.gameHand);
+    setCardImages();
+    overlapCardsAndCreateClickableDivs();
+  }
+  updateButtons();
 });
 
 socket.on('tribute summary', (data) => {

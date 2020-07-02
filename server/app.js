@@ -485,11 +485,14 @@ function playToString(playedHand) {
 }
 
 function createCard(i, v, s = undefined) {
-  return {
+  let card = {
     deckIndex: i,
     value: v,
-    suit: s,
   };
+  if (s) {
+    card.suit = s;
+  }
+  return card;
 }
 
 function createAndShuffleDeck(n) {

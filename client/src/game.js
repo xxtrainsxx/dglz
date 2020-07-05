@@ -265,15 +265,20 @@ socket.on('num spectators', (data) => {
 });
 
 socket.on('check ok', (data) => {
-  if (data.pass) {
+  if (data.onlyPassOk) {
     $('#play').prop('disabled', true);
     $('#play').prop('title', 'Select cards to play');
   } else {
     $('#play').prop('disabled', false);
     $('#play').removeAttr('title');
   }
-  $('#pass').prop('disabled', false);
-  $('#pass').removeAttr('title');
+  if (data.isPassOk) {
+    $('#pass').prop('disabled', false);
+    $('#pass').removeAttr('title');
+  } else {
+    $('#pass').prop('disabled', true);
+    $('#pass').prop('title', 'First action of round cannot be pass');
+  }
   $('#send-card').prop('disabled', false);
   $('#send-card').removeAttr('title');
 });
@@ -284,9 +289,12 @@ socket.on('check error', (data) => {
   if (data.err == 'Not your turn') {
     $('#pass').prop('disabled', true);
     $('#pass').prop('title', data.err);
-  } else {
+  } else if (data.isPassOk) {
     $('#pass').prop('disabled', false);
     $('#pass').removeAttr('title');
+  } else {
+    $('#pass').prop('disabled', true);
+    $('#pass').prop('title', 'First action of round cannot be pass');
   }
   $('#send-card').prop('disabled', true);
   $('#send-card').prop('title', data.err);

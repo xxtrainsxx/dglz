@@ -384,23 +384,32 @@ const suit = {
 };
 
 const play = {
-  PASS: 1,
-  HIGH_CARD: 2,
-  PAIR: 3,
-  TRIPLET: 4,
-  STRAIGHT: 5,
-  FLUSH: 6,
-  FULL_HOUSE: 7,
-  FOUR_OF_A_KIND: 8,
-  STRAIGHT_FLUSH: 9,
-  FIVE_OF_A_KIND: 10,
+  PASS: 0,
+  HIGH_CARD: 1,
+  PAIR: 2,
+  TRIPLET: 3,
+  STRAIGHT: 4,
+  FLUSH: 5,
+  FULL_HOUSE: 6,
+  FOUR_OF_A_KIND: 7,
+  STRAIGHT_FLUSH: 8,
+  FIVE_OF_A_KIND: 9,
 };
 
 const gameState = {
-  IN_PROGRESS: 1,
-  TEAM_ONE_WON: 2,
-  TEAM_TWO_WON: 3,
-}
+  IN_PROGRESS: 0,
+  TEAM_ONE_WON: 1,
+  TEAM_TWO_WON: 2,
+};
+
+const errorCode = {
+  OTHER: 0,
+  NOT_PLAYERS_TURN: 1,
+  INVALID_PLAY: 2,
+  WEAKER_PLAY: 3,
+  INVALID_PASS: 4,
+  INVALID_TRIBUTE: 5,
+};
 
 function getUnicodePlayingCard(card) {
   // The first of the block (a card back).
@@ -525,7 +534,10 @@ function createPlayer(username, startingHand) {
           return _.isEqual(o, card);
         });
         if (i < 0) {
-          throw {message: 'Cannot play card not in hand'};
+          throw {
+            errorCode: errorCode.OTHER,
+            message: 'Cannot play card not in hand',
+          };
         }
         this.hand.splice(i, 1);
       }
@@ -560,7 +572,10 @@ function getPlay(playedHand) {
         value: playedHand[0].value,
       };
     }
-    throw {message: 'Invalid pair'};
+    throw {
+      errorCode: errorCode.INVALID_PLAY,
+      message: 'Invalid pair',
+    };
   }
   if (playedHand.length == 3) {
     let nonJokerValue = null;
@@ -577,7 +592,10 @@ function getPlay(playedHand) {
         continue;
       }
       if (card.value !== nonJokerValue) {
-        throw {message: 'Invalid triplet'};
+        throw {
+          errorCode: errorCode.INVALID_PLAY,
+          message: 'Invalid triplet',
+        };
       }
     }
     if (nonJokerValue == null) {
@@ -722,9 +740,15 @@ function getPlay(playedHand) {
         value: straightHighCard,
       };
     }
-    throw {message: 'Invalid poker hand'};
+    throw {
+      errorCode: errorCode.INVALID_PLAY,
+      message: 'Invalid poker hand',
+    };
   }
-  throw {message: 'Hand length not valid: ' + playedHand.length};
+  throw {
+    errorCode: errorCode.INVALID_PLAY,
+    message: 'Hand length not valid: ' + playedHand.length,
+  };
 }
 
 function checkSequence(currentPlay, previousPlay) {
@@ -733,28 +757,46 @@ function checkSequence(currentPlay, previousPlay) {
   }
   if (previousPlay.play == play.HIGH_CARD) {
     if (currentPlay.play != play.HIGH_CARD) {
-      throw {message: 'Must play a high card on a high card'};
+      throw {
+        errorCode: errorCode.WEAKER_PLAY,
+        message: 'Must play a high card on a high card',
+      };
     }
     if (currentPlay.value <= previousPlay.value) {
-      throw {message: 'Must play a strictly higher high card'};
+      throw {
+        errorCode: errorCode.WEAKER_PLAY,
+        message: 'Must play a strictly higher high card',
+      };
     }
     return;
   }
   if (previousPlay.play == play.PAIR) {
     if (currentPlay.play != play.PAIR) {
-      throw {message: 'Must play a pair on a pair'};
+      throw {
+        errorCode: errorCode.WEAKER_PLAY,
+        message: 'Must play a pair on a pair',
+      };
     }
     if (currentPlay.value <= previousPlay.value) {
-      throw {message: 'Must play a strictly higher pair'};
+      throw {
+        errorCode: errorCode.WEAKER_PLAY,
+        message: 'Must play a strictly higher pair',
+      };
     }
     return;
   }
   if (previousPlay.play == play.TRIPLET) {
     if (currentPlay.play != play.TRIPLET) {
-      throw {message: 'Must play a triplet on a triplet'};
+      throw {
+        errorCode: errorCode.WEAKER_PLAY,
+        message: 'Must play a triplet on a triplet',
+      };
     }
     if (currentPlay.value <= previousPlay.value) {
-      throw {message: 'Must play a strictly higher triplet'};
+      throw {
+        errorCode: errorCode.WEAKER_PLAY,
+        message: 'Must play a strictly higher triplet',
+      };
     }
     return;
   }
@@ -762,14 +804,20 @@ function checkSequence(currentPlay, previousPlay) {
     return;
   }
   if (currentPlay.play < previousPlay.play) {
-    throw {message: 'Must not play a worse hand type than the previous'};
+    throw {
+      errorCode: errorCode.WEAKER_PLAY,
+      message: 'Must not play a worse hand type than the previous',
+    };
   }
   // Straight.
   if (currentPlay.play == play.STRAIGHT) {
     if (currentPlay.value > previousPlay.value) {
       return;
     }
-    throw {message: 'Must play a strictly higher straight or a better poker hand'};
+    throw {
+      errorCode: errorCode.WEAKER_PLAY,
+      message: 'Must play a strictly higher straight or a better poker hand',
+    };
   }
   // Flush.
   if (currentPlay.play == play.FLUSH) {
@@ -781,46 +829,70 @@ function checkSequence(currentPlay, previousPlay) {
         break;
       }
     }
-    throw {message: 'Must play a strictly higher flush or a better poker hand'};
+    throw {
+      errorCode: errorCode.WEAKER_PLAY,
+      message: 'Must play a strictly higher flush or a better poker hand',
+    };
   }
   // Full house.
   if (currentPlay.play == play.FULL_HOUSE) {
     if (currentPlay.triplet_value > previousPlay.triplet_value || (currentPlay.triplet_value === previousPlay.triplet_value && currentPlay.pair_value > previousPlay.pair_value)) {
       return;
     }
-    throw {message: 'Must play a strictly higher full house or a better poker hand'};
+    throw {
+      errorCode: errorCode.WEAKER_PLAY,
+      message: 'Must play a strictly higher full house or a better poker hand',
+    };
   }
   // Four of a kind.
   if (currentPlay.play == play.FOUR_OF_A_KIND) {
     if (currentPlay.four_value > previousPlay.four_value || (currentPlay.four_value === previousPlay.four_value && currentPlay.one_value > previousPlay.one_value)) {
       return;
     }
-    throw {message: 'Must play a strictly higher four-of-a-kind or a better poker hand'};
+    throw {
+      errorCode: errorCode.WEAKER_PLAY,
+      message: 'Must play a strictly higher four-of-a-kind or a better poker hand',
+    };
   }
   // Straight flush.
   if (currentPlay.play == play.STRAIGHT_FLUSH) {
     if (currentPlay.value > previousPlay.value) {
       return;
     }
-    throw {message: 'Must play a strictly higher straight flush or a better poker hand'};
+    throw {
+      errorCode: errorCode.WEAKER_PLAY,
+      message: 'Must play a strictly higher straight flush or a better poker hand',
+    };
   }
   // Five of a kind.
   if (currentPlay.play == play.FIVE_OF_A_KIND) {
     if (currentPlay.value > previousPlay.value) {
       return;
     }
-    throw {message: 'Must play a strictly higher five-of-a-kind'};
+    throw {
+      errorCode: errorCode.WEAKER_PLAY,
+      message: 'Must play a strictly higher five-of-a-kind',
+    };
   }
-  throw {message: 'Unrecognized play'};
+  throw {
+    errorCode: errorCode.OTHER,
+    message: 'Unrecognized play',
+  };
 }
 
 function createGame() {
   if (players.length % 2 != 0) {
-    throw {message: 'Must have an even number of players'};
+    throw {
+      errorCode: errorCode.OTHER,
+      message: 'Must have an even number of players',
+    };
   }
   let deck = createAndShuffleDeck(players.length / 2);
   if (deck.length != players.length * handSize) {
-    throw {err: 'Created bad deck'};
+    throw {
+      errorCode: errorCode.OTHER,
+      message: 'Created bad deck',
+    };
   }
   let gamePlayers = [];
   let firstPlayer = -1;
@@ -834,7 +906,10 @@ function createGame() {
       return _.isEqual(o, createCard(0, value.THREE, suit.CLUBS));
     }) >= 0) {
       if (firstPlayer >= 0) {
-        throw {message: 'Multiple first players found'};
+        throw {
+          errorCode: errorCode.OTHER,
+          message: 'Multiple first players found',
+        };
       }
       firstPlayer = p;
     }
@@ -842,12 +917,15 @@ function createGame() {
     lastActions.push('');
   }
   if (firstPlayer < 0) {
-    throw {message: 'Could not find starting player'};
+    throw {
+      errorCode: errorCode.OTHER,
+      message: 'Could not find starting player',
+    };
   }
   return {
     gamePlayers: gamePlayers,
     currentPlayer: firstPlayer, // Index.
-    lastPlayer: -1,             // Index.
+    lastPlayer: firstPlayer,    // Index.
     previousPlay: {play: play.PASS},
     previousPlayedHand: [],
     lastActions: lastActions,   // Reset every round.
@@ -912,7 +990,10 @@ function createGame() {
     },  // Should only be called once the game is over.
     validateTribute: function(username, selectedCards) {
       if (!selectedCards) {
-        throw {message: 'Select a card'};
+        throw {
+          errorCode: errorCode.OTHER,
+          message: 'Select a card',
+        };
       }
       let player = null;
       for (p of this.gamePlayers) {
@@ -922,45 +1003,79 @@ function createGame() {
         }
       }
       if (player == null) {
-        throw {message: 'Could not find player'};
+        throw {
+          errorCode: errorCode.OTHER,
+          message: 'Could not find player',
+        };
       }
       for (t of tributes) {
         if (t.giver === username) {
           if (selectedCards.length !== 1) {
-            throw {message: 'Must select exactly one card'};
+            throw {
+              errorCode: errorCode.INVALID_TRIBUTE,
+              message: 'Must select exactly one card',
+            };
           }
           if (t.hasOwnProperty('giverSent')) {
-            throw {message: 'Already sent a card'};
+            throw {
+              errorCode: errorCode.OTHER,
+              message: 'Already sent a card',
+            };
           }
           let sortedHand = _.sortBy(player.hand, [function(o) {
             return o.value;
           }]);
           if (selectedCards[0].value != sortedHand[sortedHand.length - 1].value) {
-            throw {message: 'Must select highest card in hand'};
+            throw {
+              errorCode: errorCode.INVALID_TRIBUTE,
+              message: 'Must select highest card in hand',
+            };
           }
           return;
         }
         if (t.receiver === username) {
           if (selectedCards.length !== 1) {
-            throw {message: 'Must select exactly one card'};
+            throw {
+              errorCode: errorCode.INVALID_TRIBUTE,
+              message: 'Must select exactly one card',
+            };
           }
           if (t.hasOwnProperty('receiverSent')) {
-            throw {message: 'Already sent a card'};
+            throw {
+              errorCode: errorCode.OTHER,
+              message: 'Already sent a card',
+            };
           }
           return;
         }
       }
-      throw {message: 'Waiting for tributes'};
+      throw {
+        errorCode: errorCode.OTHER,
+        message: 'Waiting for tributes',
+      };
+    },
+    isPassOk: function() {
+      return this.currentPlayer !== this.lastPlayer;
     },
     validate: function(username, playedHand) {
       if (username !== this.gamePlayers[this.currentPlayer].username) {
-        throw {message: 'Not your turn'};
+        throw {
+          errorCode: errorCode.OTHER,
+          message: 'Not your turn',
+        };
       }
       let currentPlay = getPlay(playedHand);
-      checkSequence(
-        currentPlay,
-        this.currentPlayer === this.lastPlayer ? {play: play.PASS} : this.previousPlay
-      );
+      let previousPlay = this.previousPlay;
+      if (this.currentPlayer === this.lastPlayer) {
+        if (currentPlay.play === play.PASS) {
+          throw {
+            errorCode: errorCode.INVALID_PASS,
+            message: 'Cannot pass',
+          };
+        }
+        previousPlay = {play: play.PASS};
+      }
+      checkSequence(currentPlay, previousPlay);
       return currentPlay;
     },
     sendTribute: function(username, selectedCards) {
@@ -987,7 +1102,10 @@ function createGame() {
         }
       }
       if (receiver == null) {
-        throw {message: 'Could not find recipient'};
+        throw {
+          errorCode: errorCode.OTHER,
+          message: 'Could not find recipient',
+        };
       }
       for (p of this.gamePlayers) {
         if (p.username === receiver) {
@@ -1112,11 +1230,18 @@ io.on('connection', (socket) => {
         socket.emit('check error', {err: err.message});
       }
     } else {
+      let isPassOk = game.isPassOk();
       try {
         let currentPlay = game.validate(username, playedHand);
-        socket.emit('check ok', {pass: currentPlay.play === play.PASS});
+        socket.emit('check ok', {
+          isPassOk: isPassOk,
+          onlyPassOk: currentPlay.play === play.PASS,
+        });
       } catch (err) {
-        socket.emit('check error', {err: err.message});
+        socket.emit('check error', {
+          isPassOk: isPassOk,
+          err: err.message,
+        });
       }
     }
   });
